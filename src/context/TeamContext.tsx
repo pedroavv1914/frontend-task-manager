@@ -8,6 +8,14 @@ interface User {
   role: string;
 }
 
+export interface TeamMember {
+  id: number;
+  userId: number;
+  teamId: number;
+  createdAt: string;
+  user: User;
+}
+
 export interface Team {
   id: number;
   name: string;
@@ -15,7 +23,7 @@ export interface Team {
   createdAt: string;
   updatedAt: string;
   createdById: number;
-  members: User[];
+  members: TeamMember[];
   _count?: {
     members: number;
     tasks: number;
@@ -26,7 +34,11 @@ interface TeamContextType {
   teams: Team[];
   loading: boolean;
   error: string | null;
-  createTeam: (teamData: { name: string; description: string }) => Promise<Team>;
+  createTeam: (teamData: { 
+    name: string; 
+    description: string; 
+    memberIds?: number[];
+  }) => Promise<Team>;
   fetchTeams: () => Promise<void>;
   getTeam: (id: number) => Promise<Team | null>;
 }
@@ -74,7 +86,11 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const createTeam = async (teamData: { name: string; description: string }): Promise<Team> => {
+  const createTeam = async (teamData: { 
+    name: string; 
+    description: string; 
+    memberIds?: number[];
+  }): Promise<Team> => {
     try {
       setLoading(true);
       setError(null);
@@ -84,13 +100,20 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('Usuário não autenticado');
       }
 
+      // Prepara os dados para envio
+      const requestData = {
+        name: teamData.name,
+        description: teamData.description,
+        memberIds: teamData.memberIds || [],
+      };
+
       const response = await fetch('http://localhost:3000/api/teams', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(teamData),
+        body: JSON.stringify(requestData),
       });
 
       const data = await response.json();
