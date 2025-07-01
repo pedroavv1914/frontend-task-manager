@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 
 interface User {
@@ -8,7 +8,7 @@ interface User {
   role: string;
 }
 
-interface TeamMember {
+export interface TeamMember {
   id: number;
   userId: number;
   teamId: number;
@@ -16,7 +16,7 @@ interface TeamMember {
   user: User;
 }
 
-interface Team {
+export interface Team {
   id: number;
   name: string;
   description: string | null;
@@ -44,7 +44,7 @@ interface TeamContextType {
     description: string; 
     memberIds?: number[];
   }) => Promise<Team>;
-  fetchTeams: (force?: boolean) => Promise<Team[]>;
+  fetchTeams: () => Promise<Team[]>;
   getTeam: (id: number) => Promise<Team | null>;
 }
 
@@ -56,31 +56,21 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  const fetchTeams = useCallback(async (force = false): Promise<Team[]> => {
-    if (loading && !force) {
-      console.log('Carregamento de times já em andamento, aguardando...');
-      return teams;
-    }
-
-    if (teams.length > 0 && !force) {
-      console.log('Retornando times em cache');
-      return teams;
-    }
-
-    setLoading(true);
-    setError(null);
-
+  const fetchTeams = async (): Promise<Team[]> => {
     try {
+      setLoading(true);
+      setError(null);
+      
       const token = localStorage.getItem('token');
-      if (!token) throw new Error('Usuário não autenticado');
+      if (!token) {
+        throw new Error('Usuário não autenticado');
+      }
 
-      console.log('Iniciando carregamento de times...');
       const response = await fetch('http://localhost:3000/api/teams', {
-        headers: { 
-          'Authorization': `Bearer ${token}`, 
-          'Content-Type': 'application/json' 
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        cache: 'no-store',
       });
 
       if (!response.ok) {
@@ -89,11 +79,23 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const data = await response.json();
+      console.log('Dados recebidos da API (fetchTeams):', {
+        rawData: data,
+        teamsData: data.data?.teams || data || [],
+        hasData: !!(data.data?.teams || data)
+      });
+      
       const teamsData = data.data?.teams || data || [];
       const normalizedTeams = Array.isArray(teamsData) ? teamsData : [teamsData];
-
-      console.log(`Carregados ${normalizedTeams.length} times da API`);
-
+      
+      console.log('Times normalizados:', normalizedTeams.map(team => ({
+        id: team.id,
+        name: team.name,
+        memberCount: team.members?.length,
+        _count: team._count,
+        hasMembers: !!team.members?.length
+      })));
+      
       setTeams(normalizedTeams);
       return normalizedTeams;
     } catch (err) {
@@ -106,9 +108,9 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, [loading, teams]);
+  };
 
-  const updateTeam = useCallback(async (id: number, teamData: { 
+  const updateTeam = async (id: number, teamData: { 
     name: string; 
     description: string; 
     memberIds?: number[];
@@ -116,10 +118,13 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
       setError(null);
-
+      
       const token = localStorage.getItem('token');
-      if (!token) throw new Error('Usuário não autenticado');
+      if (!token) {
+        throw new Error('Usuário não autenticado');
+      }
 
+      // Prepara os dados para envio
       const requestData = {
         name: teamData.name.trim(),
         description: teamData.description.trim(),
@@ -141,8 +146,10 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
         throw new Error(data.message || 'Erro ao atualizar time');
       }
 
+      // Atualiza a lista de times após a atualização
       await fetchTeams();
-
+      
+      // Retorna o time atualizado
       const updatedTeam = data.data?.team || data;
       return updatedTeam;
     } catch (err) {
@@ -153,9 +160,9 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, [fetchTeams]);
+  };
 
-  const createTeam = useCallback(async (teamData: { 
+  const createTeam = async (teamData: { 
     name: string; 
     description: string; 
     memberIds?: number[];
@@ -163,10 +170,13 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
       setError(null);
-
+      
       const token = localStorage.getItem('token');
-      if (!token) throw new Error('Usuário não autenticado');
+      if (!token) {
+        throw new Error('Usuário não autenticado');
+      }
 
+      // Prepara os dados para envio
       const requestData = {
         name: teamData.name,
         description: teamData.description,
@@ -188,10 +198,12 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
         throw new Error(data.message || 'Erro ao criar time');
       }
 
-      await fetchTeams();
-
+      // Atualiza a lista de times após a criação
+      const updatedTeams = await fetchTeams();
+      // Retorna o time criado com os dados completos
       const createdTeam = data.data?.team || data;
-      return createdTeam;
+      // Garante que a lista de times esteja atualizada antes de retornar
+      return updatedTeams.find(t => t.id === createdTeam.id) || createdTeam;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao criar time';
       setError(message);
@@ -200,15 +212,17 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, [fetchTeams]);
+  };
 
-  const getTeam = useCallback(async (id: number): Promise<Team | null> => {
+  const getTeam = async (id: number): Promise<Team | null> => {
     try {
       setLoading(true);
       setError(null);
-
+      
       const token = localStorage.getItem('token');
-      if (!token) throw new Error('Usuário não autenticado');
+      if (!token) {
+        throw new Error('Usuário não autenticado');
+      }
 
       const response = await fetch(`http://localhost:3000/api/teams/${id}`, {
         headers: {
@@ -235,46 +249,25 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
+  // Carrega os times quando o componente é montado
   useEffect(() => {
-    let isMounted = true;
-
-    const loadTeams = async () => {
-      if (!user) return;
-
-      try {
-        console.log('Carregando times para o usuário:', user.id);
-        await fetchTeams();
-      } catch (error) {
-        console.error('Erro ao carregar times:', error);
-        if (isMounted) {
-          setError('Falha ao carregar times. Tente novamente mais tarde.');
-        }
-      }
-    };
-
-    if (isMounted && user) {
-      loadTeams();
+    if (user) {
+      fetchTeams();
     }
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user, fetchTeams]);
-
-  const contextValue = useMemo(() => ({
-    teams,
-    loading,
-    error,
-    createTeam,
-    updateTeam,
-    fetchTeams,
-    getTeam,
-  }), [teams, loading, error, createTeam, updateTeam, fetchTeams, getTeam]);
+  }, [user]);
 
   return (
-    <TeamContext.Provider value={contextValue}>
+    <TeamContext.Provider value={{
+      teams,
+      loading,
+      error,
+      createTeam,
+      updateTeam,
+      fetchTeams,
+      getTeam,
+    }}>
       {children}
     </TeamContext.Provider>
   );
