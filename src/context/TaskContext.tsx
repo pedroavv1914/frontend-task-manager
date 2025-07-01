@@ -39,10 +39,12 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchTasks = useCallback(async () => {
     try {
+      console.log('Iniciando carregamento de tarefas e times...');
       setLoading(true);
       setError(null);
       
       // Busca tarefas e times da API em paralelo
+      console.log('Fazendo requisições para /tasks e /teams...');
       const [tasksData, teamsData] = await Promise.all([
         api.get<TaskWithDetails[]>('/tasks').catch(err => {
           console.error('Erro ao carregar tarefas:', err);
@@ -54,13 +56,21 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
         })
       ]);
       
+      console.log('Dados recebidos:', { tasks: tasksData, teams: teamsData });
+      
       // Atualiza o estado apenas se os dados forem válidos
       if (Array.isArray(tasksData)) {
+        console.log(`Atualizando ${tasksData.length} tarefas`);
         setTasks(tasksData);
+      } else {
+        console.warn('Dados de tarefas inválidos:', tasksData);
       }
       
       if (Array.isArray(teamsData)) {
+        console.log(`Atualizando ${teamsData.length} times`);
         setTeams(teamsData);
+      } else {
+        console.warn('Dados de times inválidos:', teamsData);
       }
       
       // Verifica se ambos os arrays estão vazios (possível erro)

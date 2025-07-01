@@ -4,6 +4,16 @@ import { toast } from 'react-hot-toast';
 import { useTasks } from '../context/TaskContext';
 import TaskCard from '../components/TaskCard';
 
+// Tipos auxiliares para o estado do formulário
+interface NewTaskState {
+  title: string;
+  description: string;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'BLOCKED';
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
+  assignedTo: string; // Armazena apenas um responsável (ID)
+  teamId: string;
+}
+
 const TasksPage = () => {
   // Limpa localStorage de tasks/teams/users ao carregar a página (exceto token)
   useEffect(() => {
@@ -11,11 +21,89 @@ const TasksPage = () => {
       if (!['token'].includes(key)) localStorage.removeItem(key);
     });
   }, []);
-  const { tasks, deleteTask, teams } = useTasks();
+  const { tasks, deleteTask, teams, createTask, fetchTasks } = useTasks();
+  
+  // Log para depuração dos times
+  useEffect(() => {
+    console.log('Times disponíveis no componente:', teams);
+    if (teams && teams.length > 0) {
+      console.log('Detalhes dos times:', teams.map(team => ({
+        id: team.id,
+        name: team.name,
+        memberCount: team.members?.length || 0,
+        members: team.members?.map(m => ({
+          id: (m as any).id || (m as any).userId,
+          name: (m as any).name || 'Nome não disponível'
+        }))
+      })));
+    }
+  }, [teams]);
   const [isLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'BLOCKED'>('all');
   const [teamFilter, setTeamFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Estados do modal de criação
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newTask, setNewTask] = useState<NewTaskState>({
+    title: '',
+    description: '',
+    status: 'PENDING',
+    priority: 'MEDIUM',
+    assignedTo: '',
+    teamId: '',
+  });
+
+  // Handler para inputs do formulário
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setNewTask((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Handler de submit do formulário/modal
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTask.title.trim()) {
+      toast.error('O título da tarefa é obrigatório');
+      return;
+    }
+    if (!newTask.teamId) {
+      toast.error('Selecione um time responsável');
+      return;
+    }
+    if (!newTask.assignedTo) {
+      toast.error('Selecione um responsável pela tarefa');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await createTask({
+        title: newTask.title,
+        description: newTask.description,
+        priority: newTask.priority,
+        assignedTo: [newTask.assignedTo],
+        teamId: newTask.teamId,
+      });
+      toast.success('Tarefa criada com sucesso!');
+      setShowCreateModal(false);
+      setNewTask({
+        title: '',
+        description: '',
+        status: 'PENDING',
+        priority: 'MEDIUM',
+        assignedTo: '',
+        teamId: '',
+      });
+      await fetchTasks();
+    } catch (error) {
+      toast.error('Erro ao criar tarefa');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   console.log('Todas as tarefas:', tasks);
   
@@ -111,24 +199,165 @@ const TasksPage = () => {
               <h1 className="text-2xl font-bold">Minhas Tarefas</h1>
               <p className="text-blue-100">Gerencie suas tarefas e atividades</p>
             </div>
-            <Link
-              to="/tasks/new"
+            <button
               className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-blue-600 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 whitespace-nowrap"
+              onClick={() => setShowCreateModal(true)}
             >
               <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
               </svg>
               Criar Tarefa
-            </Link>
+            </button>
           </div>
         </div>
       </div>
       
+      {/* Modal de criação de tarefa */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md relative">
+            <button
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+              onClick={() => setShowCreateModal(false)}
+              aria-label="Fechar"
+            >
+              ×
+            </button>
+            <h2 className="text-xl font-bold mb-4">Criar Nova Tarefa</h2>
+            <form onSubmit={handleCreateTask} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Título</label>
+                <input
+                  type="text"
+                  name="title"
+                  value={newTask.title}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Descrição</label>
+                <textarea
+                  name="description"
+                  value={newTask.description}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Status</label>
+                <select
+                  name="status"
+                  value={newTask.status}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  required
+                >
+                  <option value="PENDING">Pendente</option>
+                  <option value="IN_PROGRESS">Em andamento</option>
+                  <option value="COMPLETED">Concluída</option>
+                  <option value="BLOCKED">Bloqueada</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Prioridade</label>
+                <select
+                  name="priority"
+                  value={newTask.priority}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  required
+                >
+                  <option value="LOW">Baixa</option>
+                  <option value="MEDIUM">Média</option>
+                  <option value="HIGH">Alta</option>
+                </select>
+              </div>
+              {/* Campo de seleção de Time */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Time Responsável</label>
+                <select
+                  name="teamId"
+                  value={newTask.teamId}
+                  onChange={e => {
+                    handleInputChange(e);
+                    setNewTask(prev => ({ ...prev, assignedTo: '' })); // Limpa responsável ao trocar time
+                  }}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  required
+                >
+                  <option value="">Selecione um time {teams ? `(${teams.length} disponíveis)` : ''}</option>
+                  {teams && teams.length > 0 ? teams.map(team => (
+                    <option key={team.id} value={team.id}>
+                      {team.name} ({team.members?.length || 0} membros)
+                    </option>
+                  )) : (
+                    <option disabled>Nenhum time disponível</option>
+                  )}
+                </select>
+              </div>
+              {/* Campo de seleção de Responsável, filtrado pelo time */}
+              {newTask.teamId && (
+                <div>
+                  {(() => {
+                    if (!newTask.teamId) return null;
+                    const selectedTeam = teams?.find(t => t.id === newTask.teamId);
+                    const members = selectedTeam?.members || [];
+                    if (!selectedTeam) return null;
+                    if (members.length === 0) {
+                      return (
+                        <div className="text-red-600 text-sm">Este time não possui membros. Selecione outro time ou adicione membros ao time.</div>
+                      );
+                    }
+                    return (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Responsável</label>
+                        <select
+                          name="assignedTo"
+                          value={newTask.assignedTo}
+                          onChange={handleInputChange}
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          required
+                        >
+                          <option value="">Selecione o responsável</option>
+                          {members.map(member => {
+                            // Suporte a diferentes estruturas de membro (User, {id, name}, {userId, name})
+                            const id = (member as any).id ?? (member as any).userId;
+                            return (
+                              <option key={id} value={id}>
+                                {member.name}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Criando...' : 'Criar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Conteúdo principal */}
       <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-          {/* Filtros e Busca */}
+
+          {/* Filtros */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Filtro de status */}
             <div>
               <label htmlFor="filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Filtrar por status
@@ -146,7 +375,7 @@ const TasksPage = () => {
                 <option value="BLOCKED">Bloqueadas</option>
               </select>
             </div>
-            
+            {/* Filtro de time */}
             <div>
               <label htmlFor="teamFilter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Filtrar por time
@@ -165,7 +394,7 @@ const TasksPage = () => {
                 ))}
               </select>
             </div>
-            
+            {/* Filtro de busca */}
             <div className="w-full">
               <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Buscar
@@ -187,65 +416,52 @@ const TasksPage = () => {
               </div>
             </div>
           </div>
-
-          {/* Lista de Tarefas */}
-          <div className="mt-8">
-            {isLoading ? (
-              <div className="text-center py-8">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
-                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Carregando tarefas...</p>
-              </div>
-            ) : filteredTasks.length === 0 ? (
-              <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
-                <svg
-                  className="mx-auto h-12 w-12 text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  aria-hidden="true"
+          {/* Renderização condicional da lista ou estado vazio */}
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Carregando tarefas...</p>
+            </div>
+          ) : filteredTasks.length === 0 ? (
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
+              <svg
+                className="mx-auto h-12 w-12 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Nenhuma tarefa encontrada</h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {searchTerm || filter !== 'all' || teamFilter !== 'all'
+                  ? 'Tente ajustar sua busca ou filtros.'
+                  : 'Crie uma nova tarefa para começar.'}
+              </p>
+              <div className="mt-6">
+                <Link
+                  to="/tasks/new"
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-                <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Nenhuma tarefa encontrada</h3>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  {searchTerm || filter !== 'all' || teamFilter !== 'all' 
-                    ? 'Tente ajustar sua busca ou filtros.' 
-                    : 'Crie uma nova tarefa para começar.'}
-                </p>
-                <div className="mt-6">
-                  <Link
-                    to="/tasks/new"
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                    </svg>
-                    Nova Tarefa
-                  </Link>
-                </div>
+                  <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                  </svg>
+                  Nova Tarefa
+                </Link>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredTasks.map((task) => (
-                  <div key={task.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-all duration-200 border border-gray-50 dark:border-gray-700 h-full flex flex-col">
-                    <TaskCard 
-                      task={task} 
-                      onDelete={handleDeleteTask} 
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div>{/* Renderize aqui a lista de tarefas */}</div>
+          )}
         </div>
       </div>
     </div>
   );
-};
-
+}
 export default TasksPage;
