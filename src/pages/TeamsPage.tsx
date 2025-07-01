@@ -235,21 +235,27 @@ const TeamsPage = () => {
               {Array.isArray(teams) && teams.map((team) => (
                 <div
                   key={team.id}
-                  className="group relative flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+                  className="group relative flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1 dark:border-gray-700 dark:bg-gray-800 transform hover:scale-[1.02]"
                 >
-                  {/* Cabeçalho do Card */}
-                  <div className="px-5 pt-5 pb-3">
-                    <div className="flex items-start justify-between gap-3">
+                  {/* Cabeçalho do Card com gradiente */}
+                  <div className="h-2 bg-gradient-to-r from-blue-500 to-purple-600"></div>
+                  
+                  {/* Conteúdo do Card */}
+                  <div className="p-5">
+                    <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-white truncate pr-2">
                             {team.name}
                           </h3>
                           {isAdmin && (
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
                               <button
-                                onClick={() => {/* TODO: Implementar edição */}}
-                                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 p-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // TODO: Implementar edição
+                                }}
+                                className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-gray-600 rounded-md transition-colors duration-200"
                                 title="Editar time"
                               >
                                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -257,8 +263,11 @@ const TeamsPage = () => {
                                 </svg>
                               </button>
                               <button
-                                onClick={() => handleDeleteTeam(team.id)}
-                                className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 p-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteTeam(team.id);
+                                }}
+                                className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-gray-600 rounded-md transition-colors duration-200"
                                 title="Excluir time"
                               >
                                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -270,20 +279,47 @@ const TeamsPage = () => {
                         </div>
                         
                         {team.description && (
-                          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
+                          <p className="mt-3 text-sm text-gray-600 dark:text-gray-300 line-clamp-2 leading-relaxed">
                             {team.description}
                           </p>
                         )}
                         
-                        <div className="mt-3 flex items-center text-xs text-gray-500 dark:text-gray-400">
-                          <span className="flex items-center">
-                            <svg className="h-3.5 w-3.5 mr-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
+                        {/* Membros do time */}
+                        {team.members?.length > 0 && (
+                          <div className="mt-4">
+                            <div className="flex items-center -space-x-2">
+                              {team.members.slice(0, 5).map((member, idx) => (
+                                <div 
+                                  key={member.user.id} 
+                                  className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-medium text-blue-800 dark:text-blue-200 shadow-sm"
+                                  style={{ zIndex: 5 - idx }}
+                                  title={member.user.name || member.user.email}
+                                >
+                                  {(member.user.name || member.user.email).charAt(0).toUpperCase()}
+                                </div>
+                              ))}
+                              {team.members.length > 5 && (
+                                <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-medium text-gray-600 dark:text-gray-300 shadow-sm">
+                                  +{team.members.length - 5}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Rodapé do card */}
+                        <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                            <span className="flex items-center">
+                              <svg className="h-3.5 w-3.5 mr-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              {new Date(team.createdAt).toLocaleDateString('pt-BR')}
+                            </span>
+                          </div>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                             {team.members?.length || 0} {team.members?.length === 1 ? 'membro' : 'membros'}
                           </span>
-                          <span className="mx-2">•</span>
-                          <span>Criado em {new Date(team.createdAt).toLocaleDateString('pt-BR')}</span>
                         </div>
                       </div>
                     </div>
