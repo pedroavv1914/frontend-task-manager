@@ -39,7 +39,7 @@ interface TeamContextType {
     description: string; 
     memberIds?: number[];
   }) => Promise<Team>;
-  fetchTeams: () => Promise<void>;
+  fetchTeams: () => Promise<Team[]>;
   getTeam: (id: number) => Promise<Team | null>;
 }
 
@@ -51,7 +51,7 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  const fetchTeams = async () => {
+  const fetchTeams = async (): Promise<Team[]> => {
     try {
       setLoading(true);
       setError(null);
@@ -74,13 +74,32 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const data = await response.json();
-      console.log('Dados recebidos da API:', data);
-      setTeams(data.data?.teams || data || []);
+      console.log('Dados recebidos da API (fetchTeams):', {
+        rawData: data,
+        teamsData: data.data?.teams || data || [],
+        hasData: !!(data.data?.teams || data)
+      });
+      
+      const teamsData = data.data?.teams || data || [];
+      const normalizedTeams = Array.isArray(teamsData) ? teamsData : [teamsData];
+      
+      console.log('Times normalizados:', normalizedTeams.map(team => ({
+        id: team.id,
+        name: team.name,
+        memberCount: team.members?.length,
+        _count: team._count,
+        hasMembers: !!team.members?.length
+      })));
+      
+      setTeams(normalizedTeams);
+      return normalizedTeams;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar times';
       setError(message);
       console.error('Erro ao carregar times:', err);
-      setTeams([]);
+      const emptyTeams: Team[] = [];
+      setTeams(emptyTeams);
+      return emptyTeams;
     } finally {
       setLoading(false);
     }
@@ -123,8 +142,11 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Atualiza a lista de times após a criação
-      await fetchTeams();
-      return data.data?.team || data;
+      const updatedTeams = await fetchTeams();
+      // Retorna o time criado com os dados completos
+      const createdTeam = data.data?.team || data;
+      // Garante que a lista de times esteja atualizada antes de retornar
+      return updatedTeams.find(t => t.id === createdTeam.id) || createdTeam;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao criar time';
       setError(message);

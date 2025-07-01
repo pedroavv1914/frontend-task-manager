@@ -14,7 +14,7 @@ const TeamsPage = () => {
     });
   }, []);
   const { user } = useAuth();
-  const { teams, loading, createTeam, error } = useTeams();
+  const { teams, loading, createTeam, fetchTeams, error } = useTeams();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'ADMIN';
 
@@ -97,8 +97,8 @@ const TeamsPage = () => {
     try {
       // Cria o time usando a função createTeam do contexto
       await createTeam({
-        name: newTeam.name,
-        description: newTeam.description,
+        name: newTeam.name.trim(),
+        description: newTeam.description.trim(),
         memberIds: selectedUsers.map(id => parseInt(id, 10)), // Converte os IDs para número
       });
 
@@ -106,6 +106,10 @@ const TeamsPage = () => {
       setNewTeam({ name: '', description: '' });
       setSelectedUsers([]);
       setShowCreateModal(false);
+      
+      // Força a atualização da lista de times
+      await fetchTeams();
+      
       toast.success('Time criado com sucesso!');
     } catch (error) {
       console.error('Erro ao criar time:', error);
@@ -318,7 +322,7 @@ const TeamsPage = () => {
                             </span>
                           </div>
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                            {team.members?.length || 0} {team.members?.length === 1 ? 'membro' : 'membros'}
+                            {team._count?.members ?? team.members?.length ?? 0} {team._count?.members === 1 || (team.members?.length === 1 && !team._count) ? 'membro' : 'membros'}
                           </span>
                         </div>
                       </div>
