@@ -22,7 +22,7 @@ export interface Team {
   description: string | null;
   createdAt: string;
   updatedAt: string;
-  createdById: number;
+  createdById?: number;
   members: TeamMember[];
   _count?: {
     members: number;
@@ -35,6 +35,11 @@ interface TeamContextType {
   loading: boolean;
   error: string | null;
   createTeam: (teamData: { 
+    name: string; 
+    description: string; 
+    memberIds?: number[];
+  }) => Promise<Team>;
+  updateTeam: (id: number, teamData: { 
     name: string; 
     description: string; 
     memberIds?: number[];
@@ -100,6 +105,58 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
       const emptyTeams: Team[] = [];
       setTeams(emptyTeams);
       return emptyTeams;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateTeam = async (id: number, teamData: { 
+    name: string; 
+    description: string; 
+    memberIds?: number[];
+  }): Promise<Team> => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      // Prepara os dados para envio
+      const requestData = {
+        name: teamData.name.trim(),
+        description: teamData.description.trim(),
+        memberIds: teamData.memberIds || [],
+      };
+
+      const response = await fetch(`http://localhost:3000/api/teams/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(requestData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Erro ao atualizar time');
+      }
+
+      // Atualiza a lista de times após a atualização
+      await fetchTeams();
+      
+      // Retorna o time atualizado
+      const updatedTeam = data.data?.team || data;
+      return updatedTeam;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao atualizar time';
+      setError(message);
+      console.error('Erro ao atualizar time:', err);
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -202,7 +259,15 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
   }, [user]);
 
   return (
-    <TeamContext.Provider value={{ teams, loading, error, createTeam, fetchTeams, getTeam }}>
+    <TeamContext.Provider value={{
+      teams,
+      loading,
+      error,
+      createTeam,
+      updateTeam,
+      fetchTeams,
+      getTeam,
+    }}>
       {children}
     </TeamContext.Provider>
   );

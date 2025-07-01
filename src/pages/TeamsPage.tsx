@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
-import { useTeams } from '../context/TeamContext';
+import { useTeams, Team as TeamType } from '../context/TeamContext';
 
 // Usando o tipo TeamWithMembers para tipar os times com membros completos
 
@@ -14,11 +14,12 @@ const TeamsPage = () => {
     });
   }, []);
   const { user } = useAuth();
-  const { teams, loading, createTeam, fetchTeams, error } = useTeams();
+  const { teams, loading, createTeam, updateTeam, fetchTeams, error } = useTeams();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'ADMIN';
 
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<{id: number | null, name: string, description: string} | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newTeam, setNewTeam] = useState({
     name: '',
@@ -27,6 +28,31 @@ const TeamsPage = () => {
   
   const [availableUsers, setAvailableUsers] = useState<Array<{id: string, name: string}>>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  
+  // Inicializa o formulário de edição
+  const handleEditTeam = (team: TeamType) => {
+    setNewTeam({
+      name: team.name,
+      description: team.description || ''
+    });
+    setSelectedUsers(team.members?.map(member => member.userId.toString()) || []);
+    setEditingTeam({
+      id: team.id,
+      name: team.name,
+      description: team.description || ''
+    });
+    setShowCreateModal(true);
+  };
+  
+  // Fecha o modal e limpa o formulário
+  const handleCloseModal = () => {
+    setShowCreateModal(false);
+    setNewTeam({ name: '', description: '' });
+    setSelectedUsers([]);
+    setEditingTeam(null);
+  };
+
+
   const { users } = useAuth();
   
   // Exibir erros do contexto
@@ -83,7 +109,7 @@ const TeamsPage = () => {
     e.preventDefault();
 
     if (!isAdmin) {
-      toast.error('Apenas administradores podem criar times');
+      toast.error('Apenas administradores podem gerenciar times');
       return;
     }
 
@@ -95,25 +121,34 @@ const TeamsPage = () => {
     setIsSubmitting(true);
 
     try {
-      // Cria o time usando a função createTeam do contexto
-      await createTeam({
-        name: newTeam.name.trim(),
-        description: newTeam.description.trim(),
-        memberIds: selectedUsers.map(id => parseInt(id, 10)), // Converte os IDs para número
-      });
+      const memberIds = selectedUsers.map(id => parseInt(id, 10));
+      
+      if (editingTeam && editingTeam.id) {
+        // Atualiza o time existente
+        await updateTeam(editingTeam.id, {
+          name: newTeam.name.trim(),
+          description: newTeam.description.trim(),
+          memberIds,
+        });
+        toast.success('Time atualizado com sucesso!');
+      } else {
+        // Cria um novo time
+        await createTeam({
+          name: newTeam.name.trim(),
+          description: newTeam.description.trim(),
+          memberIds,
+        });
+        toast.success('Time criado com sucesso!');
+      }
 
       // Limpa o formulário e fecha o modal
-      setNewTeam({ name: '', description: '' });
-      setSelectedUsers([]);
-      setShowCreateModal(false);
+      handleCloseModal();
       
-      // Força a atualização da lista de times
+      // Atualiza a lista de times
       await fetchTeams();
-      
-      toast.success('Time criado com sucesso!');
     } catch (error) {
-      console.error('Erro ao criar time:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao criar time';
+      console.error('Erro ao salvar time:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao salvar time';
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -255,10 +290,7 @@ const TeamsPage = () => {
                           {isAdmin && (
                             <div className="flex items-center space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // TODO: Implementar edição
-                                }}
+                                onClick={() => handleEditTeam(team)}
                                 className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-gray-600 rounded-md transition-colors duration-200"
                                 title="Editar time"
                               >
@@ -267,10 +299,7 @@ const TeamsPage = () => {
                                 </svg>
                               </button>
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteTeam(team.id);
-                                }}
+                                onClick={() => handleDeleteTeam(team.id)}
                                 className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-gray-600 rounded-md transition-colors duration-200"
                                 title="Excluir time"
                               >
