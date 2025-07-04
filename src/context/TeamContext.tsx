@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 
 interface User {
@@ -56,7 +56,7 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  const fetchTeams = async (): Promise<Team[]> => {
+    const fetchTeams = useCallback(async (): Promise<Team[]> => {
     try {
       setLoading(true);
       setError(null);
@@ -79,15 +79,22 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const data = await response.json();
-      console.log('Dados recebidos da API (fetchTeams):', {
-        rawData: data,
-        teamsData: data.data?.teams || data || [],
-        hasData: !!(data.data?.teams || data)
-      });
+      // Extrai o array de times da resposta da API de forma segura
+      const teamsData = data?.data?.teams || [];
+
+      console.log(`Encontrados ${teamsData.length} times na API`);
       
-      const teamsData = data.data?.teams || data || [];
-      const normalizedTeams = Array.isArray(teamsData) ? teamsData : [teamsData];
-      
+      const normalizedTeams: Team[] = teamsData.map((team: any) => ({
+        id: team.id,
+        name: team.name || 'Time sem nome',
+        description: team.description || null,
+        createdAt: team.createdAt || new Date().toISOString(),
+        updatedAt: team.updatedAt || new Date().toISOString(),
+        createdById: team.createdById,
+        members: Array.isArray(team.members) ? team.members : [],
+        _count: team._count || { members: 0, tasks: 0 }
+      } as Team));
+
       console.log('Times normalizados:', normalizedTeams.map(team => ({
         id: team.id,
         name: team.name,
@@ -108,7 +115,7 @@ export const TeamProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const updateTeam = async (id: number, teamData: { 
     name: string; 

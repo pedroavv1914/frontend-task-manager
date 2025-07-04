@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useTasks } from '../context/TaskContext';
+import { useTeams } from '../context/TeamContext';
 import TaskCard from '../components/TaskCard';
 
 // Tipos auxiliares para o estado do formulário
@@ -21,8 +22,15 @@ const TasksPage = () => {
       if (!['token'].includes(key)) localStorage.removeItem(key);
     });
   }, []);
-  const { tasks, deleteTask, teams, createTask, fetchTasks } = useTasks();
+  const { tasks, deleteTask, createTask, fetchTasks } = useTasks();
+  const { teams, fetchTeams } = useTeams();
   
+  // Carrega as tarefas e times quando o componente é montado
+  useEffect(() => {
+    fetchTasks();
+    fetchTeams();
+  }, [fetchTasks, fetchTeams]);
+
   // Log para depuração dos times
   useEffect(() => {
     console.log('Times disponíveis no componente:', teams);
@@ -83,6 +91,7 @@ const TasksPage = () => {
       await createTask({
         title: newTask.title,
         description: newTask.description,
+        status: newTask.status,
         priority: newTask.priority,
         assignedTo: [newTask.assignedTo],
         teamId: newTask.teamId,
@@ -302,18 +311,29 @@ const TasksPage = () => {
               {newTask.teamId && (
                 <div>
                   {(() => {
-                    if (!newTask.teamId) return null;
-                    const selectedTeam = teams?.find(t => t.id === newTask.teamId);
-                    const members = selectedTeam?.members || [];
-                    if (!selectedTeam) return null;
+                    if (!newTask.teamId) {
+                      return null; // Não mostra nada se nenhum time for selecionado
+                    }
+
+                    const selectedTeamData = teams.find(team => String(team.id) === newTask.teamId);
+
+                    if (!selectedTeamData) {
+                      return null; // Time selecionado não encontrado
+                    }
+
+                    const members = selectedTeamData.members || [];
+
                     if (members.length === 0) {
                       return (
-                        <div className="text-red-600 text-sm">Este time não possui membros. Selecione outro time ou adicione membros ao time.</div>
+                        <div className="text-red-600 text-sm mt-2">
+                          Este time não possui membros. Adicione membros ao time ou selecione outro.
+                        </div>
                       );
                     }
+
                     return (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Responsável</label>
+                        <label className="block text-sm font-medium text-gray-700 mt-4">Responsável</label>
                         <select
                           name="assignedTo"
                           value={newTask.assignedTo}
@@ -321,16 +341,12 @@ const TasksPage = () => {
                           className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                           required
                         >
-                          <option value="">Selecione o responsável</option>
-                          {members.map(member => {
-                            // Suporte a diferentes estruturas de membro (User, {id, name}, {userId, name})
-                            const id = (member as any).id ?? (member as any).userId;
-                            return (
-                              <option key={id} value={id}>
-                                {member.name}
-                              </option>
-                            );
-                          })}
+                          <option value="">Selecione um responsável</option>
+                          {members.map(member => (
+                            <option key={member.id} value={member.userId}>
+                              {member.user.name}
+                            </option>
+                          ))}
                         </select>
                       </div>
                     );

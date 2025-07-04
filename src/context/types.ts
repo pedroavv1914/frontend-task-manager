@@ -19,6 +19,16 @@ export interface CreateUserData {
   bio?: string;
 }
 
+export interface CreateTaskData {
+  title: string;
+  description?: string;
+  status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'BLOCKED';
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
+  assignedTo: string[];
+  teamId: string;
+  dueDate?: string;
+}
+
 export interface UpdateUserData extends Partial<Omit<CreateUserData, 'email' | 'password'>> {
   id: string;
   email?: string;

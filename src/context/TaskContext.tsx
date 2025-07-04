@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-import { Task, Team, CreateTaskData, CreateTeamData, UpdateTaskData, UpdateTeamData, TaskWithDetails, TeamWithMembers } from '../types';
+import { CreateTaskData } from './types';
+import { Task, Team, CreateTeamData, UpdateTaskData, UpdateTeamData, TaskWithDetails, TeamWithMembers } from '../types';
 import { api } from '../config/api';
 
 // Interface para o retorno da API de remoção de membro
@@ -39,43 +40,29 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchTasks = useCallback(async () => {
     try {
-      console.log('Iniciando carregamento de tarefas e times...');
+      console.log('Iniciando carregamento de tarefas...');
       setLoading(true);
       setError(null);
       
-      // Busca tarefas e times da API em paralelo
-      console.log('Fazendo requisições para /tasks e /teams...');
-      const [tasksData, teamsData] = await Promise.all([
-        api.get<TaskWithDetails[]>('/tasks').catch(err => {
-          console.error('Erro ao carregar tarefas:', err);
-          return []; // Retorna array vazio em caso de erro
-        }),
-        api.get<TeamWithMembers[]>('/teams').catch(err => {
-          console.error('Erro ao carregar times:', err);
-          return []; // Retorna array vazio em caso de erro
-        })
-      ]);
-      
-      console.log('Dados recebidos:', { tasks: tasksData, teams: teamsData });
-      
-      // Atualiza o estado apenas se os dados forem válidos
-      if (Array.isArray(tasksData)) {
-        console.log(`Atualizando ${tasksData.length} tarefas`);
-        setTasks(tasksData);
+      // Busca tarefas da API com tipagem explícita e correta para a resposta
+      console.log('Fazendo requisição para /tasks...');
+      const tasksResponse = await api.get<{ 
+        status: string;
+        results: number;
+        data: { data: { tasks: TaskWithDetails[] } };
+      }>('/tasks').catch(err => {
+        console.error('Erro ao carregar tarefas:', err);
+        return null;
+      });
+
+      // Normaliza os dados das tarefas, agora com tipos corretos
+      const tasks = tasksResponse?.data?.data?.tasks;
+      if (tasks && Array.isArray(tasks)) {
+        console.log('Dados de tarefas recebidos:', tasks);
+        setTasks(tasks);
       } else {
-        console.warn('Dados de tarefas inválidos:', tasksData);
-      }
-      
-      if (Array.isArray(teamsData)) {
-        console.log(`Atualizando ${teamsData.length} times`);
-        setTeams(teamsData);
-      } else {
-        console.warn('Dados de times inválidos:', teamsData);
-      }
-      
-      // Verifica se ambos os arrays estão vazios (possível erro)
-      if (tasksData.length === 0 && teamsData.length === 0) {
-        throw new Error('Não foi possível carregar os dados. Verifique sua conexão e tente novamente.');
+        console.error('Dados de tarefas inválidos ou não encontrados:', tasksResponse?.data);
+        setTasks([]);
       }
       
     } catch (err) {
@@ -97,12 +84,6 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
       setError(null);
-      
-      // Verifica se a tarefa existe localmente
-      const taskExists = tasks.some(task => task.id === taskId);
-      if (!taskExists) {
-        throw new Error('Tarefa não encontrada');
-      }
       
       // Chama a API para atualizar a tarefa
       const updatedTask = await api.put<TaskWithDetails>(`/tasks/${taskId}`, taskData);
@@ -132,7 +113,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, [tasks]);
+  }, []);
 
   // Função para criar uma nova tarefa
   const createTask = useCallback(async (taskData: CreateTaskData): Promise<Task> => {
@@ -143,18 +124,35 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       if (!user) throw new Error('Usuário não autenticado');
       
       // Prepara os dados da tarefa incluindo teamId e assignedTo
-      const taskToCreate = {
-        ...taskData,
-        status: 'PENDING', // Status padrão para novas tarefas
-        createdBy: user.id,
-        // Garante que assignedTo seja um array de strings (IDs de usuários)
-        assignedTo: Array.isArray(taskData.assignedTo) 
-          ? taskData.assignedTo 
-          : taskData.assignedTo ? [taskData.assignedTo] : [],
-        // Inclui o teamId se existir
-        ...(taskData.teamId && { teamId: taskData.teamId })
+      // Constrói o payload da tarefa explicitamente para evitar campos inesperados
+      const taskToCreate: any = {
+        title: taskData.title,
+        description: taskData.description,
+        status: taskData.status || 'PENDING',
+        priority: taskData.priority,
       };
-      
+
+      // Adiciona a data de vencimento no formato ISO, se existir
+      if (taskData.dueDate) {
+        taskToCreate.dueDate = new Date(taskData.dueDate).toISOString();
+      }
+
+      // Converte e adiciona o ID do time, se existir
+      if (taskData.teamId) {
+        taskToCreate.teamId = Number(taskData.teamId);
+      }
+
+      // Converte e adiciona os IDs dos responsáveis, se existirem
+      const assignees = (Array.isArray(taskData.assignedTo)
+        ? taskData.assignedTo
+        : taskData.assignedTo ? [taskData.assignedTo] : [])
+        .map((id: string | number) => Number(id))
+        .filter(Boolean); // Remove valores nulos ou NaN
+
+      if (assignees.length > 0) {
+        taskToCreate.assignedTo = assignees;
+      }
+
       // Chama a API para criar a tarefa
       const newTask = await api.post<TaskWithDetails>('/tasks', taskToCreate);
       
@@ -187,12 +185,6 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       setError(null);
       
-      // Verifica se a tarefa existe localmente
-      const taskExists = tasks.some(task => task.id === taskId);
-      if (!taskExists) {
-        throw new Error('Tarefa não encontrada');
-      }
-      
       // Chama a API para excluir a tarefa
       await api.delete(`/tasks/${taskId}`);
       
@@ -207,7 +199,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, [tasks]);
+  }, []);
 
   // Função para atribuir uma tarefa a um ou mais usuários
   const assignTask = useCallback(async (taskId: string, userIds: string[]): Promise<void> => {
