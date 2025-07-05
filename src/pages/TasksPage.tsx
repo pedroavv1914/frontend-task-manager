@@ -406,11 +406,15 @@ const TasksPage = () => {
 
       // Filtro por time
       if (teamFilter !== 'all') {
-        if (task.team?.id !== teamFilter) {
-          console.log(`❌ Time não corresponde: "${task.team?.id || 'Sem time'}" !== "${teamFilter}"`);
+        // Converte teamFilter para número para compatibilidade com task.team?.id
+        const teamFilterNumber = Number(teamFilter);
+        
+        // Compara os valores convertendo para o mesmo tipo
+        if (!task.team || Number(task.team.id) !== teamFilterNumber) {
+          console.log(`❌ Time não corresponde: "${task.team?.id || 'Sem time'}" !== "${teamFilter}" (${teamFilterNumber})`);
           return false;
         }
-        console.log('✅ Time corresponde');
+        console.log(`✅ Time corresponde: ${task.team.id} === ${teamFilterNumber}`);
       }
 
       // Filtro por termo de busca
