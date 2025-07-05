@@ -81,7 +81,21 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       
       if (tasksData.length > 0) {
         console.log('Tarefas carregadas com sucesso:', tasksData);
-        setTasks(tasksData);
+        
+        // Mapeia o campo deadline do backend para dueDate no frontend
+        const processedTasks = tasksData.map(task => {
+          // Se o campo deadline existe na resposta da API, mapeie para dueDate
+          if ('deadline' in task) {
+            return {
+              ...task,
+              dueDate: task.deadline as any,
+              deadline: undefined // Remove o campo deadline para evitar duplicidade
+            };
+          }
+          return task;
+        });
+        
+        setTasks(processedTasks);
       } else {
         console.log('Nenhuma tarefa encontrada.');
         setTasks([]);
@@ -114,6 +128,11 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
         status: taskData.status,
         priority: taskData.priority,
       };
+
+      // Adiciona o campo dueDate/deadline se estiver presente
+      if ('dueDate' in taskData && taskData.dueDate) {
+        apiData.deadline = taskData.dueDate; // Mapeando dueDate (frontend) para deadline (backend)
+      }
       
       // Se teamId estiver presente, converte para número (ou null se for string vazia)
       if ('teamId' in taskData) {
@@ -170,7 +189,8 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
         createdAt: updatedTask.createdAt,
         updatedAt: updatedTask.updatedAt,
         assignedTo: updatedTask.assignee ? [updatedTask.assignee.id] : [],
-        teamId: updatedTask.team?.id
+        teamId: updatedTask.team?.id,
+        dueDate: updatedTask.dueDate // Usa o campo dueDate do frontend
       };
       
       return task;

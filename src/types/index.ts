@@ -33,6 +33,7 @@ export interface TeamWithMembers extends Omit<Team, 'members'> {
 export interface TaskWithDetails extends Omit<Task, 'assignedTo' | 'teamId'> {
   assignee: User | null; // Usuário atribuído (pode ser null)
   team?: Team; // Time ao qual a tarefa pertence (opcional)
+  dueDate?: string; // Data limite para completar a tarefa (frontend)
 }
 
 export interface CreateTaskData {

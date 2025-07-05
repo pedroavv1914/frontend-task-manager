@@ -77,14 +77,7 @@ const TaskCard = ({ task, onEdit, onDelete }: TaskCardProps) => {
               <span>{task.assignee.name || 'Sem responsável'}</span>
             </div>
           )}
-          {task.team && (
-            <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
-              <svg className="h-4 w-4 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-              <span>{task.team.name || 'Sem time'}</span>
-            </div>
-          )}
+          {/* Informação do time foi removida */}
         </div>
         
         <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
