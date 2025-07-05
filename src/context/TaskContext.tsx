@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { CreateTaskData } from './types';
-import { Task, Team, CreateTeamData, UpdateTaskData, UpdateTeamData, TaskWithDetails, TeamWithMembers } from '../types';
+import { Task, Team, CreateTeamData, UpdateTaskData, UpdateTeamData, TaskWithDetails, TeamWithMembers, TaskStatus } from '../types';
 import { api } from '../config/api';
 
 // Interface para o retorno da API de remoção de membro
@@ -82,20 +82,23 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       if (tasksData.length > 0) {
         console.log('Tarefas carregadas com sucesso:', tasksData);
         
-        // Mapeia o campo deadline do backend para dueDate no frontend
+        // Processa as tarefas da API, mantendo o dueDate original se existir
         const processedTasks = tasksData.map(task => {
           // Se o campo deadline existe na resposta da API, mapeie para dueDate
           if ('deadline' in task) {
-            return {
+            const enhancedTask = {
               ...task,
-              dueDate: task.deadline as any,
+              dueDate: task.deadline as string, // Mapeia deadline para dueDate com type assertion
               deadline: undefined // Remove o campo deadline para evitar duplicidade
-            };
+            } as TaskWithDetails; // Garante que o tipo corresponda à TaskWithDetails
+            console.log('Tarefa com dueDate mapeado de deadline:', enhancedTask);
+            return enhancedTask;
           }
           return task;
         });
         
         setTasks(processedTasks);
+        console.log('Estado de tasks atualizado com processedTasks:', processedTasks);
       } else {
         console.log('Nenhuma tarefa encontrada.');
         setTasks([]);
@@ -116,22 +119,35 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
   }, [fetchTasks]);
 
   // Função para atualizar uma tarefa
-  const updateTask = useCallback(async (taskId: string, taskData: UpdateTaskData): Promise<Task> => {
+  const updateTask = useCallback(async (taskId: string | number, taskData: UpdateTaskData): Promise<Task> => {
+    if (!user) throw new Error('Usuário não autenticado');
+    
     try {
       setLoading(true);
       setError(null);
       
       // Prepara os dados para a API
-      const apiData: any = { 
+      const apiData: any = {
         title: taskData.title,
         description: taskData.description,
-        status: taskData.status,
+        // Converte status BLOCKED para PENDING porque o backend não aceita BLOCKED
+        status: taskData.status === 'BLOCKED' ? 'PENDING' : taskData.status,
         priority: taskData.priority,
       };
+      
+      // Guarda o status original para uso local no frontend
+      // Garantindo que seja um valor válido de TaskStatus
+      const originalStatus: TaskStatus = taskData.status || 'PENDING';
 
-      // Adiciona o campo dueDate/deadline se estiver presente
+      // Armazena o dueDate para uso posterior na atualização local
+      const dueDateToPreserve = taskData.dueDate;
+      console.log('dueDate sendo preservado para atualização local:', dueDateToPreserve);
+      
+      // NÃO enviamos o campo dueDate/deadline para o backend
+      // porque o backend ainda não tem suporte completo para esse campo
       if ('dueDate' in taskData && taskData.dueDate) {
-        apiData.deadline = taskData.dueDate; // Mapeando dueDate (frontend) para deadline (backend)
+        console.log('Data presente, mas não será enviada ao backend:', taskData.dueDate);
+        // NÃO adicionamos o campo deadline ao apiData
       }
       
       // Se teamId estiver presente, converte para número (ou null se for string vazia)
@@ -168,32 +184,47 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       
       // Chama a API para atualizar a tarefa
       console.log(`Fazendo requisição PUT para /tasks/${taskId} com dados:`, apiData);
-      const updatedTask = await api.put<TaskWithDetails>(`/tasks/${taskId}`, apiData);
-      console.log('Resposta da API:', updatedTask);
+      const response = await api.put<any>(`/tasks/${taskId}`, apiData);
+      console.log('Resposta da API:', response);
       
-      // Atualiza o estado local com a tarefa atualizada
+      // Extrai a tarefa da resposta - a estrutura é response.data.data.task
+      const updatedTaskFromApi = response.data.data ? response.data.data.task : response.data;
+      console.log('Tarefa recebida do backend:', updatedTaskFromApi);
+      
+      // Cria uma versão da tarefa com o status original e a data preservada
+      const taskWithPreservedFields: TaskWithDetails = {
+        ...updatedTaskFromApi,
+        status: originalStatus, // Preserva o status original (especialmente para BLOCKED)
+        dueDate: dueDateToPreserve // Mantém a data do formulário
+      };
+      
+      console.log('Tarefa com campos preservados após atualização:', taskWithPreservedFields);
+      
+      // Atualiza o estado local com a tarefa atualizada e os campos preservados
       setTasks(prevTasks => 
         prevTasks.map(task => 
-          task.id === taskId ? updatedTask : task
+          task.id === taskId ? taskWithPreservedFields : task
         )
       );
       
-      // Converte de TaskWithDetails para Task
-      const task: Task = {
-        id: updatedTask.id,
-        title: updatedTask.title,
-        description: updatedTask.description,
-        status: updatedTask.status,
-        priority: updatedTask.priority,
-        createdBy: updatedTask.createdBy,
-        createdAt: updatedTask.createdAt,
-        updatedAt: updatedTask.updatedAt,
-        assignedTo: updatedTask.assignee ? [updatedTask.assignee.id] : [],
-        teamId: updatedTask.team?.id,
-        dueDate: updatedTask.dueDate // Usa o campo dueDate do frontend
+      // Converte para o tipo Task para retornar
+      const taskToReturn: Task = {
+        id: updatedTaskFromApi.id,
+        title: updatedTaskFromApi.title,
+        description: updatedTaskFromApi.description,
+        status: originalStatus, // Usa o status original preservado
+        priority: updatedTaskFromApi.priority,
+        createdBy: updatedTaskFromApi.createdBy,
+        createdAt: updatedTaskFromApi.createdAt,
+        updatedAt: updatedTaskFromApi.updatedAt,
+        assignedTo: updatedTaskFromApi.assignee ? [updatedTaskFromApi.assignee.id] : [],
+        teamId: updatedTaskFromApi.team?.id,
+        dueDate: dueDateToPreserve
       };
       
-      return task;
+      setLoading(false);
+      
+      return taskToReturn;
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar tarefa';
@@ -213,51 +244,70 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       
       if (!user) throw new Error('Usuário não autenticado');
       
-      // Prepara os dados da tarefa incluindo teamId e assignedTo
-      // Constrói o payload da tarefa explicitamente para evitar campos inesperados
+      // Simplificamos ao máximo o objeto que enviamos para o backend
+      // para evitar erros 500
       const taskToCreate: any = {
-        title: taskData.title,
-        description: taskData.description,
-        status: taskData.status || 'PENDING',
-        priority: taskData.priority,
+        title: taskData.title || 'Nova tarefa',
+        description: taskData.description || '',
+        status: 'PENDING', // Sempre começa como pendente
+        priority: taskData.priority || 'MEDIUM',
       };
-
-      // Adiciona a data de vencimento no formato ISO, se existir
+      
+      console.log('Criando tarefa com dados simplificados:', taskToCreate);
+      
+      // Guardamos a data apenas no frontend
+      let dueDateToPreserve: string | undefined = undefined;
       if (taskData.dueDate) {
-        taskToCreate.dueDate = new Date(taskData.dueDate).toISOString();
+        dueDateToPreserve = taskData.dueDate;
+        console.log('Data presente, será preservada apenas no frontend:', dueDateToPreserve);
       }
-
-      // Converte e adiciona o ID do time, se existir
-      if (taskData.teamId) {
+      
+      // Adicionamos TeamId apenas se for necessário e certeza que não causaria erro
+      if (taskData.teamId && !isNaN(Number(taskData.teamId))) {
         taskToCreate.teamId = Number(taskData.teamId);
       }
-
-      // Converte e adiciona os IDs dos responsáveis, se existirem
-      const assignees = (Array.isArray(taskData.assignedTo)
-        ? taskData.assignedTo
-        : taskData.assignedTo ? [taskData.assignedTo] : [])
-        .map((id: string | number) => Number(id))
-        .filter(Boolean); // Remove valores nulos ou NaN
-
-      if (assignees.length > 0) {
-        taskToCreate.assignedTo = assignees;
+      
+      // Simplificamos o envio dos responsáveis
+      if (taskData.assignedTo && Array.isArray(taskData.assignedTo) && taskData.assignedTo.length > 0) {
+        // Enviamos apenas o primeiro ID e garantimos que é um número válido
+        const assigneeId = Number(taskData.assignedTo[0]);
+        if (!isNaN(assigneeId)) {
+          taskToCreate.assignedTo = assigneeId;
+        }
       }
-
+      
       // Chama a API para criar a tarefa
-      const newTask = await api.post<TaskWithDetails>('/tasks', taskToCreate);
+      const createdTask = await api.post<TaskWithDetails>('/tasks', taskToCreate);
       
-      // Atualiza o estado local com a nova tarefa
-      setTasks(prevTasks => [...prevTasks, newTask]);
+      console.log('Tarefa criada com sucesso no backend:', createdTask);
       
-      // Retorna a tarefa criada (convertida para o tipo Task se necessário)
-      const task: Task = {
-        ...newTask,
-        assignedTo: newTask.assignee ? [
-          typeof newTask.assignee === 'string' ? newTask.assignee : newTask.assignee.id
-        ] : []
+      // Para corrigir erros de tipagem, vamos criar um objeto que é compatível com o estado
+      const taskForState = {
+        ...createdTask,
+        dueDate: dueDateToPreserve // Preserva o dueDate selecionado no formulário
       };
       
-      return task;
+      console.log('Tarefa com dueDate preservado para o frontend:', taskForState);
+      
+      // Adiciona a tarefa ao estado com o dueDate preservado
+      setTasks(prevTasks => [taskForState, ...prevTasks]);
+      
+      // Convertemos para o tipo Task para retornar para a interface do componente
+      const taskToReturn: Task = {
+        id: createdTask.id,
+        title: createdTask.title,
+        description: createdTask.description,
+        status: createdTask.status,
+        priority: createdTask.priority,
+        createdBy: createdTask.createdBy,
+        createdAt: createdTask.createdAt,
+        updatedAt: createdTask.updatedAt,
+        assignedTo: createdTask.assignee ? [createdTask.assignee.id] : [],
+        teamId: createdTask.team?.id,
+        dueDate: dueDateToPreserve
+      };
+      
+      return taskToReturn;
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao criar tarefa';

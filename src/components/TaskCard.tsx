@@ -1,6 +1,5 @@
 import { TaskWithDetails } from '../types';
 import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { StatusBadge } from './ui/Badge';
 
 interface TaskCardProps {
@@ -95,7 +94,20 @@ const TaskCard = ({ task, onEdit, onDelete }: TaskCardProps) => {
               <svg className="h-3.5 w-3.5 mr-1.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <span>{task.dueDate ? format(new Date(task.dueDate), "dd/MM/yyyy", { locale: ptBR }) : 'Sem data'}</span>
+              <span>
+                {task.dueDate 
+                  ? (() => {
+                      try {
+                        // Tenta formatar a data com date-fns
+                        const formattedDate = format(new Date(task.dueDate), 'dd/MM/yyyy');
+                        return formattedDate;
+                      } catch (error) {
+                        console.error('Erro ao formatar data:', error, task.dueDate);
+                        return 'Data inválida';
+                      }
+                    })() 
+                  : 'Sem data'}
+              </span>
             </div>
             
             {task.assignee && (

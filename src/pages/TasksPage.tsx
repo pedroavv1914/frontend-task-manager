@@ -129,8 +129,11 @@ const TasksPage = () => {
         status: newTask.status,
         priority: newTask.priority,
         assignedTo: newTask.assignedTo ? [newTask.assignedTo] : [],
-        teamId: newTask.teamId
+        teamId: newTask.teamId,
+        dueDate: newTask.dueDate // Incluir o campo dueDate
       };
+      
+      console.log('Enviando dados da tarefa com dueDate:', taskData.dueDate);
       
       await createTask(taskData);
 
@@ -142,7 +145,8 @@ const TasksPage = () => {
         status: 'PENDING',
         priority: 'MEDIUM',
         assignedTo: '',
-        teamId: ''
+        teamId: '',
+        dueDate: undefined // Resetar o campo dueDate
       });
       
       // Recarrega as tarefas
@@ -316,8 +320,11 @@ const TasksPage = () => {
         title: newTask.title,
         description: newTask.description,
         status: newTask.status,
-        priority: newTask.priority
+        priority: newTask.priority,
+        dueDate: newTask.dueDate // Incluir a data limite na edição
       };
+      
+      console.log('Data sendo atualizada:', newTask.dueDate);
 
       // Se houver um time selecionado, adiciona ao updateData
       if (newTask.teamId) {
