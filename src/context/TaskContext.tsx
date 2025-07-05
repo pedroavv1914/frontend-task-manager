@@ -44,24 +44,46 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       setError(null);
       
-      // Busca tarefas da API com tipagem explícita e correta para a resposta
+      // Busca tarefas da API
       console.log('Fazendo requisição para /tasks...');
-      const tasksResponse = await api.get<{ 
-        status: string;
-        results: number;
-        data: { data: { tasks: TaskWithDetails[] } };
-      }>('/tasks').catch(err => {
-        console.error('Erro ao carregar tarefas:', err);
-        return null;
-      });
-
-      // Normaliza os dados das tarefas, agora com tipos corretos
-      const tasks = tasksResponse?.data?.data?.tasks;
-      if (tasks && Array.isArray(tasks)) {
-        console.log('Dados de tarefas recebidos:', tasks);
-        setTasks(tasks);
+      const response = await api.get<any>('/tasks');
+      
+      // Log detalhado da resposta para depuração
+      console.group('=== DETALHES DA RESPOSTA DA API ===');
+      console.log('Resposta completa:', response);
+      console.log('Dados da resposta:', response?.data);
+      
+      // Verifica se a resposta tem a estrutura esperada
+      let tasksData: TaskWithDetails[] = [];
+      const responseData = response?.data || {};
+      
+      // Verifica diferentes formatos de resposta
+      if (responseData && responseData.data && responseData.data.tasks) {
+        // Formato 1: { data: { tasks: [...] } }
+        console.log('Formato 1: Estrutura data.tasks');
+        tasksData = responseData.data.tasks;
+      } else if (responseData && responseData.tasks) {
+        // Formato 2: { tasks: [...] }
+        console.log('Formato 2: Propriedade tasks direta');
+        tasksData = responseData.tasks;
+      } else if (Array.isArray(responseData)) {
+        // Formato 3: [...] (array direto)
+        console.log('Formato 3: Array direto');
+        tasksData = responseData;
+      } else if (responseData.data && Array.isArray(responseData.data)) {
+        // Formato 4: { data: [...] }
+        console.log('Formato 4: Propriedade data contendo array');
+        tasksData = responseData.data;
+      }
+      
+      console.log('Tarefas extraídas:', tasksData);
+      console.groupEnd();
+      
+      if (tasksData.length > 0) {
+        console.log('Tarefas carregadas com sucesso:', tasksData);
+        setTasks(tasksData);
       } else {
-        console.error('Dados de tarefas inválidos ou não encontrados:', tasksResponse?.data);
+        console.log('Nenhuma tarefa encontrada.');
         setTasks([]);
       }
       
@@ -85,8 +107,50 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       setError(null);
       
+      // Prepara os dados para a API
+      const apiData: any = { 
+        title: taskData.title,
+        description: taskData.description,
+        status: taskData.status,
+        priority: taskData.priority,
+      };
+      
+      // Se teamId estiver presente, converte para número (ou null se for string vazia)
+      if ('teamId' in taskData) {
+        apiData.teamId = taskData.teamId ? Number(taskData.teamId) : null;
+        
+        // Se houver um time, verifica assignedTo
+        if ('assignedTo' in taskData) {
+          // Se assignedTo for um array não vazio, pega o primeiro elemento
+          if (Array.isArray(taskData.assignedTo) && taskData.assignedTo.length > 0) {
+            // Verifica se o usuário é membro do time (se houver time selecionado)
+            if (apiData.teamId) {
+              // A verificação de membro do time já foi feita no componente
+              apiData.assignedTo = Number(taskData.assignedTo[0]);
+            } else {
+              // Se não houver time, não deve haver assignedTo
+              apiData.assignedTo = null;
+            }
+          } else {
+            // Se assignedTo for vazio, envia null
+            apiData.assignedTo = null;
+          }
+        } else {
+          // Se assignedTo não estiver definido, mantém como está
+          apiData.assignedTo = null;
+        }
+      } else {
+        // Se não houver teamId, não deve haver assignedTo
+        apiData.teamId = null;
+        apiData.assignedTo = null;
+      }
+      
+      console.log('Enviando para a API:', apiData);
+      
       // Chama a API para atualizar a tarefa
-      const updatedTask = await api.put<TaskWithDetails>(`/tasks/${taskId}`, taskData);
+      console.log(`Fazendo requisição PUT para /tasks/${taskId} com dados:`, apiData);
+      const updatedTask = await api.put<TaskWithDetails>(`/tasks/${taskId}`, apiData);
+      console.log('Resposta da API:', updatedTask);
       
       // Atualiza o estado local com a tarefa atualizada
       setTasks(prevTasks => 
@@ -95,12 +159,18 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
         )
       );
       
-      // Retorna a tarefa atualizada (convertida para o tipo Task se necessário)
+      // Converte de TaskWithDetails para Task
       const task: Task = {
-        ...updatedTask,
-        assignedTo: updatedTask.assignedTo.map(user => 
-          typeof user === 'string' ? user : user.id
-        )
+        id: updatedTask.id,
+        title: updatedTask.title,
+        description: updatedTask.description,
+        status: updatedTask.status,
+        priority: updatedTask.priority,
+        createdBy: updatedTask.createdBy,
+        createdAt: updatedTask.createdAt,
+        updatedAt: updatedTask.updatedAt,
+        assignedTo: updatedTask.assignee ? [updatedTask.assignee.id] : [],
+        teamId: updatedTask.team?.id
       };
       
       return task;
@@ -162,9 +232,9 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       // Retorna a tarefa criada (convertida para o tipo Task se necessário)
       const task: Task = {
         ...newTask,
-        assignedTo: newTask.assignedTo.map(user => 
-          typeof user === 'string' ? user : user.id
-        )
+        assignedTo: newTask.assignee ? [
+          typeof newTask.assignee === 'string' ? newTask.assignee : newTask.assignee.id
+        ] : []
       };
       
       return task;
@@ -525,69 +595,37 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // Função para obter tarefas de um time
+  // Função para obter as tarefas de um time específico
   const getTeamTasks = useCallback((teamId: string): TaskWithDetails[] => {
     try {
-      // Validações iniciais
-      if (!teamId) {
-        console.warn('ID do time não fornecido');
-        return [];
-      }
-      
-      // Verifica se o time existe
-      const teamExists = teams.some(team => team.id === teamId);
-      if (!teamExists) {
-        console.warn('Time não encontrado');
-        return [];
-      }
-      
-      // Filtra as tarefas do time
       return tasks.filter(task => {
-        // Verifica se a tarefa tem um time e se o ID corresponde
-        return task.team && 
-               typeof task.team === 'object' && 
-               'id' in task.team && 
-               task.team.id === teamId;
+        if (!task.team) return false;
+        return typeof task.team === 'string' 
+          ? task.team === teamId 
+          : task.team.id === teamId;
       });
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao buscar tarefas do time';
-      console.error('Erro ao buscar tarefas do time:', errorMessage);
-      // Em caso de erro, retorna um array vazio para não quebrar a UI
-      return [];
-    }
-  }, [tasks, teams]);
-
-  // Função para obter tarefas de um usuário
-  const getUserTasks = useCallback((userId: string): TaskWithDetails[] => {
-    try {
-      // Validações iniciais
-      if (!userId) {
-        console.warn('ID do usuário não fornecido');
-        return [];
-      }
-      
-      // Filtra as tarefas atribuídas ao usuário
-      return tasks.filter(task => {
-        // Verifica se a tarefa tem usuários atribuídos
-        if (!task.assignedTo || !Array.isArray(task.assignedTo)) {
-          return false;
-        }
-        
-        // Verifica se o usuário está na lista de atribuídos
-        return task.assignedTo.some(user => {
-          // Verifica se o usuário é uma string (ID) ou um objeto com propriedade id
-          const userIdToCompare = typeof user === 'string' ? user : user?.id;
-          return userIdToCompare === userId;
-        });
-      });
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao buscar tarefas do usuário';
-      console.error('Erro ao buscar tarefas do usuário:', errorMessage);
-      // Em caso de erro, retorna um array vazio para não quebrar a UI
+      console.error('Erro ao buscar tarefas do time:', err);
       return [];
     }
   }, [tasks]);
 
+  // Função para obter as tarefas de um usuário específico
+  const getUserTasks = useCallback((userId: string): TaskWithDetails[] => {
+    try {
+      return tasks.filter(task => {
+        if (!task.assignee) return false;
+        return typeof task.assignee === 'string' 
+          ? task.assignee === userId 
+          : task.assignee.id === userId;
+      });
+    } catch (err) {
+      console.error('Erro ao buscar tarefas do usuário:', err);
+      return [];
+    }
+  }, [tasks]);
+
+  // Retorna o contexto com os dados e funções
   const contextValue: TaskContextType = {
     tasks,
     teams,

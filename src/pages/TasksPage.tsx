@@ -3,17 +3,9 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useTasks } from '../context/TaskContext';
 import { useTeams } from '../context/TeamContext';
+import { TaskWithDetails, UpdateTaskData, TaskStatus } from '../types';
 import TaskCard from '../components/TaskCard';
 
-// Tipos auxiliares para o estado do formulário
-interface NewTaskState {
-  title: string;
-  description: string;
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'BLOCKED';
-  priority: 'LOW' | 'MEDIUM' | 'HIGH';
-  assignedTo: string; // Armazena apenas um responsável (ID)
-  teamId: string;
-}
 
 const TasksPage = () => {
   // Limpa localStorage de tasks/teams/users ao carregar a página (exceto token)
@@ -22,9 +14,24 @@ const TasksPage = () => {
       if (!['token'].includes(key)) localStorage.removeItem(key);
     });
   }, []);
-  const { tasks, deleteTask, createTask, fetchTasks } = useTasks();
+
+  // Desestrutura funções do contexto
+  const { tasks, createTask, deleteTask, updateTask, fetchTasks } = useTasks();
   const { teams, fetchTeams } = useTeams();
-  
+
+  // Log para depuração
+  useEffect(() => {
+    console.log('=== DADOS NO COMPONENTE TASKSPAGE ===');
+    console.log('Tarefas:', tasks);
+    console.log('Quantidade de tarefas:', tasks.length);
+    console.log('Times:', teams);
+
+    if (tasks.length > 0) {
+      console.log('Primeira tarefa:', tasks[0]);
+      console.log('Tipo do ID da primeira tarefa:', typeof tasks[0].id);
+    }
+  }, [tasks, teams]);
+
   // Carrega as tarefas e times quando o componente é montado
   useEffect(() => {
     fetchTasks();
@@ -46,21 +53,30 @@ const TasksPage = () => {
       })));
     }
   }, [teams]);
+
   const [isLoading] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'BLOCKED'>('all');
+  const [filter, setFilter] = useState<'all' | TaskStatus>('all');
   const [teamFilter, setTeamFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Estados do modal de criação
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [newTask, setNewTask] = useState<NewTaskState>({
+  const [isSubmitting, setIsSubmitting] = useState(false); // Estado para o formulário de nova tarefa
+  const [editingTask, setEditingTask] = useState<TaskWithDetails | null>(null);
+  const [newTask, setNewTask] = useState<{
+    title: string;
+    description: string;
+    status: TaskStatus;
+    priority: 'LOW' | 'MEDIUM' | 'HIGH';
+    assignedTo: string;
+    teamId: string;
+  }>({
     title: '',
     description: '',
     status: 'PENDING',
     priority: 'MEDIUM',
     assignedTo: '',
-    teamId: '',
+    teamId: ''
   });
 
   // Handler para inputs do formulário
@@ -68,35 +84,51 @@ const TasksPage = () => {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setNewTask((prev) => ({ ...prev, [name]: value }));
+    
+    // Se o time for alterado, limpa o responsável
+    if (name === 'teamId') {
+      setNewTask(prev => ({
+        ...prev,
+        teamId: value,
+        assignedTo: '' // Limpa o responsável ao mudar o time
+      }));
+      
+      // Se houver um time selecionado, verifica se o usuário atual é membro
+      if (value) {
+        const selectedTeam = teams.find(team => String(team.id) === value);
+        if (selectedTeam && newTask.assignedTo && 
+            !selectedTeam.members?.some(member => String(member.userId) === String(newTask.assignedTo))) {
+          setNewTask(prev => ({
+            ...prev,
+            assignedTo: '' // Limpa o responsável se não for membro do time
+          }));
+        }
+      }
+    } else {
+      setNewTask(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   // Handler de submit do formulário/modal
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTask.title.trim()) {
-      toast.error('O título da tarefa é obrigatório');
-      return;
-    }
-    if (!newTask.teamId) {
-      toast.error('Selecione um time responsável');
-      return;
-    }
-    if (!newTask.assignedTo) {
-      toast.error('Selecione um responsável pela tarefa');
-      return;
-    }
+    
     setIsSubmitting(true);
+
     try {
-      await createTask({
+      // Prepara os dados da tarefa
+      const taskData = {
         title: newTask.title,
         description: newTask.description,
         status: newTask.status,
         priority: newTask.priority,
-        assignedTo: [newTask.assignedTo],
-        teamId: newTask.teamId,
-      });
-      toast.success('Tarefa criada com sucesso!');
+        assignedTo: newTask.assignedTo ? [newTask.assignedTo] : [],
+        teamId: newTask.teamId
+      };
+      
+      await createTask(taskData);
+
+      // Fecha o modal e limpa o formulário
       setShowCreateModal(false);
       setNewTask({
         title: '',
@@ -104,30 +136,117 @@ const TasksPage = () => {
         status: 'PENDING',
         priority: 'MEDIUM',
         assignedTo: '',
-        teamId: '',
+        teamId: ''
       });
+      
+      // Recarrega as tarefas
       await fetchTasks();
+      
+      // Exibe mensagem de sucesso
+      toast.success('Tarefa criada com sucesso!');
     } catch (error) {
-      toast.error('Erro ao criar tarefa');
+      console.error('Erro ao criar tarefa:', error);
+      toast.error('Erro ao criar tarefa. Por favor, tente novamente.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handler para editar tarefa
+  const handleEditTask = (task: TaskWithDetails) => {
+    setEditingTask(task);
+    setNewTask({
+      title: task.title,
+      description: task.description || '',
+      status: task.status,
+      priority: task.priority,
+      assignedTo: task.assignee?.id || '',
+      // Garante que teamId seja uma string para funcionar corretamente com o select
+      teamId: task.team?.id ? String(task.team.id) : ''
+    });
+  };
+
+  // Handler de submit do formulário de edição
+  const handleUpdateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask) return;
+
+    setIsSubmitting(true);
+
+    try {
+      // Verifica se o usuário atribuído é membro do time selecionado
+      if (newTask.teamId && newTask.assignedTo) {
+        const selectedTeam = teams.find(team => String(team.id) === newTask.teamId);
+        if (selectedTeam && !selectedTeam.members?.some(member => String(member.userId) === String(newTask.assignedTo))) {
+          throw new Error('O usuário atribuído deve ser membro do time selecionado');
+        }
+      }
+
+      const updateData: UpdateTaskData = {
+        title: newTask.title,
+        description: newTask.description,
+        status: newTask.status,
+        priority: newTask.priority
+      };
+
+      // Se houver um time selecionado, adiciona ao updateData
+      if (newTask.teamId) {
+        updateData.teamId = newTask.teamId;
+        
+        // Se houver um usuário atribuído, verifica se é membro do time
+        if (newTask.assignedTo) {
+          updateData.assignedTo = [newTask.assignedTo];
+        } else {
+          // Se não houver usuário atribuído, envia array vazio
+          updateData.assignedTo = [];
+        }
+      } else {
+        // Se não houver time selecionado, não envia assignedTo
+        updateData.teamId = '';
+        updateData.assignedTo = [];
+      }
+      
+      console.log('Enviando dados para atualização:', updateData);
+
+      await updateTask(editingTask.id, updateData);
+      
+      // Fecha o modal e limpa o estado
+      setEditingTask(null);
+      setNewTask({
+        title: '',
+        description: '',
+        status: 'PENDING',
+        priority: 'MEDIUM',
+        assignedTo: '',
+        teamId: ''
+      });
+      
+      // Recarrega as tarefas
+      await fetchTasks();
+      
+      toast.success('Tarefa atualizada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao atualizar tarefa:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao atualizar tarefa');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   console.log('Todas as tarefas:', tasks);
-  
+
   const filteredTasks = useMemo(() => {
     console.log('=== INICIANDO FILTRAGEM ===');
     console.log('Filtros ativos:', { status: filter, time: teamFilter, busca: searchTerm });
     console.log('Total de tarefas para filtrar:', tasks.length);
-    
+
     const filtered = tasks.filter(task => {
       console.log('\n--- Verificando tarefa ---');
       console.log('ID:', task.id);
       console.log('Título:', task.title);
       console.log('Status:', task.status, `(tipo: ${typeof task.status})`);
       console.log('Time:', task.team?.name || 'Sem time');
-      
+
       // Filtro por status
       if (filter !== 'all') {
         // Verifica se o status da tarefa é definido
@@ -135,11 +254,11 @@ const TasksPage = () => {
           console.log('❌ Tarefa sem status definido');
           return false;
         }
-        
+
         // Garante que o status da tarefa esteja em maiúsculas para comparação
         const taskStatus = task.status.toUpperCase();
         const filterStatus = filter.toUpperCase();
-        
+
         // Compara os valores de status em maiúsculas
         if (taskStatus !== filterStatus) {
           console.log(`❌ Status não corresponde: "${taskStatus}" !== "${filterStatus}"`);
@@ -147,7 +266,7 @@ const TasksPage = () => {
         }
         console.log('✅ Status corresponde');
       }
-      
+
       // Filtro por time
       if (teamFilter !== 'all') {
         if (task.team?.id !== teamFilter) {
@@ -156,7 +275,7 @@ const TasksPage = () => {
         }
         console.log('✅ Time corresponde');
       }
-      
+
       // Filtro por termo de busca
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase();
@@ -164,38 +283,54 @@ const TasksPage = () => {
           task.title.toLowerCase().includes(searchLower) ||
           (task.description && task.description.toLowerCase().includes(searchLower)) ||
           (task.team && task.team.name.toLowerCase().includes(searchLower)) ||
-          (task.assignedTo?.some(user => 
-            user?.name?.toLowerCase().includes(searchLower) || 
-            user?.email?.toLowerCase().includes(searchLower)
+          (task.assignee && (
+            task.assignee.name?.toLowerCase().includes(searchLower) ||
+            task.assignee.email?.toLowerCase().includes(searchLower)
           ))
         );
-        
+
         if (!matchesSearch) {
           console.log('❌ Termo de busca não encontrado');
           return false;
         }
         console.log('✅ Termo de busca encontrado');
       }
-      
+
       console.log('✅ Tarefa incluída nos resultados');
       return true;
     });
-    
+
     console.log('=== FILTRAGEM CONCLUÍDA ===');
     console.log('Tarefas encontradas:', filtered.length);
     return filtered;
   }, [tasks, filter, teamFilter, searchTerm]);
 
+  // Handler para excluir uma tarefa
   const handleDeleteTask = async (taskId: string) => {
     if (window.confirm('Tem certeza que deseja excluir esta tarefa?')) {
       try {
         await deleteTask(taskId);
+        // Recarrega as tarefas
+        await fetchTasks();
         toast.success('Tarefa excluída com sucesso!');
       } catch (error) {
         console.error('Erro ao excluir tarefa:', error);
-        toast.error('Erro ao excluir tarefa');
+        toast.error(error instanceof Error ? error.message : 'Erro ao excluir tarefa');
       }
     }
+  };
+
+  // Fecha o modal de edição e limpa o estado
+  const closeEditModal = () => {
+    setEditingTask(null);
+    setNewTask({
+      title: '',
+      description: '',
+      status: 'PENDING',
+      priority: 'MEDIUM',
+      assignedTo: '',
+      teamId: ''
+    });
   };
 
   return (
@@ -220,20 +355,22 @@ const TasksPage = () => {
           </div>
         </div>
       </div>
-      
-      {/* Modal de criação de tarefa */}
-      {showCreateModal && (
+
+      {/* Modal de criação/edição de tarefa */}
+      {(showCreateModal || editingTask) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md relative">
             <button
               className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-              onClick={() => setShowCreateModal(false)}
+              onClick={() => editingTask ? closeEditModal() : setShowCreateModal(false)}
               aria-label="Fechar"
             >
               ×
             </button>
-            <h2 className="text-xl font-bold mb-4">Criar Nova Tarefa</h2>
-            <form onSubmit={handleCreateTask} className="space-y-4">
+            <h2 className="text-xl font-bold mb-4">
+              {editingTask ? 'Editar Tarefa' : 'Criar Nova Tarefa'}
+            </h2>
+            <form onSubmit={editingTask ? handleUpdateTask : handleCreateTask} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Título</label>
                 <input
@@ -353,13 +490,23 @@ const TasksPage = () => {
                   })()}
                 </div>
               )}
-              <div className="flex justify-end">
+              <div className="flex justify-end space-x-3">
                 <button
-                  type="submit"
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  type="button"
+                  onClick={() => editingTask ? closeEditModal() : setShowCreateModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Criando...' : 'Criar'}
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting
+                    ? (editingTask ? 'Salvando...' : 'Criando...')
+                    : (editingTask ? 'Salvar' : 'Criar')}
                 </button>
               </div>
             </form>
@@ -473,7 +620,25 @@ const TasksPage = () => {
               </div>
             </div>
           ) : (
-            <div>{/* Renderize aqui a lista de tarefas */}</div>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-6">
+              {filteredTasks.length > 0 ? (
+                filteredTasks.map((task) => {
+                  console.log('Renderizando tarefa:', task.id, task.title);
+                  return (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onEdit={() => handleEditTask(task)}
+                      onDelete={() => handleDeleteTask(task.id)}
+                    />
+                  );
+                })
+              ) : (
+                <div className="col-span-full text-center py-8">
+                  <p className="text-gray-500">Nenhuma tarefa encontrada com os filtros atuais.</p>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

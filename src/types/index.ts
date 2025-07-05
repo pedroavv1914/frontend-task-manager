@@ -31,7 +31,7 @@ export interface TeamWithMembers extends Omit<Team, 'members'> {
 }
 
 export interface TaskWithDetails extends Omit<Task, 'assignedTo' | 'teamId'> {
-  assignedTo: User[]; // Array de usuários atribuídos
+  assignee: User | null; // Usuário atribuído (pode ser null)
   team?: Team; // Time ao qual a tarefa pertence (opcional)
 }
 
