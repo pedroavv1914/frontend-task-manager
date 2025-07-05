@@ -57,6 +57,7 @@ const TasksPage = () => {
   const [isLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | TaskStatus>('all');
   const [teamFilter, setTeamFilter] = useState<string>('all');
+  const [userFilter, setUserFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Estados do modal de criação
@@ -416,6 +417,16 @@ const TasksPage = () => {
         }
         console.log(`✅ Time corresponde: ${task.team.id} === ${teamFilterNumber}`);
       }
+      
+      // Filtro por pessoa responsável
+      if (userFilter !== 'all') {
+        const userFilterNumber = Number(userFilter);
+        if (!task.assignee || Number(task.assignee.id) !== userFilterNumber) {
+          console.log(`❌ Responsável não corresponde: "${task.assignee?.name || 'Sem responsável'}" (ID: ${task.assignee?.id || 'N/A'}) !== "${userFilter}" (${userFilterNumber})`);
+          return false;
+        }
+        console.log(`✅ Responsável corresponde: ${task.assignee.name} (ID: ${task.assignee.id}) === ${userFilterNumber}`);
+      }
 
       // Filtro por termo de busca
       if (searchTerm) {
@@ -444,7 +455,7 @@ const TasksPage = () => {
     console.log('=== FILTRAGEM CONCLUÍDA ===');
     console.log('Tarefas encontradas:', filtered.length);
     return filtered;
-  }, [tasks, filter, teamFilter, searchTerm]);
+  }, [tasks, filter, teamFilter, userFilter, searchTerm]);
 
   // Handler para excluir uma tarefa
   const handleDeleteTask = async (taskId: string) => {
@@ -671,7 +682,7 @@ const TasksPage = () => {
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
 
           {/* Filtros */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Filtro de status */}
             <div>
               <label htmlFor="filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -707,6 +718,39 @@ const TasksPage = () => {
                     {team.name}
                   </option>
                 ))}
+              </select>
+            </div>
+            {/* Filtro por pessoa responsável */}
+            <div>
+              <label htmlFor="userFilter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Filtrar por responsável
+              </label>
+              <select
+                id="userFilter"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                value={userFilter}
+                onChange={(e) => setUserFilter(e.target.value)}
+              >
+                <option value="all">Todos os responsáveis</option>
+                {/* Extrair responsáveis únicos das tarefas existentes */}
+                {tasks
+                  .filter(task => task.assignee) // Filtra apenas tarefas com responsável
+                  .reduce((acc: {id: string, name: string}[], task) => {
+                    // Verifica se o usuário já está no acumulador
+                    if (task.assignee && !acc.some(user => user.id === task.assignee?.id)) {
+                      acc.push({
+                        id: String(task.assignee.id),
+                        name: task.assignee.name || task.assignee.email || 'Usuário sem nome'
+                      });
+                    }
+                    return acc;
+                  }, [])
+                  .sort((a, b) => a.name.localeCompare(b.name)) // Ordena por nome
+                  .map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
+                    </option>
+                  ))}
               </select>
             </div>
             {/* Filtro de busca */}
