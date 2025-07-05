@@ -7,6 +7,8 @@ import { TaskWithDetails, UpdateTaskData, TaskStatus } from '../types';
 import TaskCard from '../components/TaskCard';
 
 
+import TaskDetailsModal from '../components/TaskDetailsModal';
+
 const TasksPage = () => {
   // Limpa localStorage de tasks/teams/users ao carregar a página (exceto token)
   useEffect(() => {
@@ -55,6 +57,7 @@ const TasksPage = () => {
   }, [teams]);
 
   const [isLoading] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<TaskWithDetails | null>(null);
   const [filter, setFilter] = useState<'all' | TaskStatus>('all');
   const [teamFilter, setTeamFilter] = useState<string>('all');
   const [userFilter, setUserFilter] = useState<string>('all');
@@ -487,26 +490,120 @@ const TasksPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Cabeçalho com fundo azul */}
-      <div className="bg-blue-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h1 className="text-2xl font-bold">Minhas Tarefas</h1>
-              <p className="text-blue-100">Gerencie suas tarefas e atividades</p>
-            </div>
-            <button
-              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-blue-600 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 whitespace-nowrap"
-              onClick={() => setShowCreateModal(true)}
+      {/* Cabeçalho moderno */}
+      <header className="w-full bg-gradient-to-r from-blue-800 via-blue-600 to-sky-500 shadow-2xl">
+        <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white drop-shadow-lg mb-2 flex items-center gap-3">
+              <svg className="h-10 w-10 text-sky-200" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              Minhas Tarefas
+            </h1>
+            <p className="text-sky-100 text-lg font-medium drop-shadow-sm">Organize, priorize e conclua suas atividades com facilidade.</p>
+          </div>
+          <button
+            className="flex items-center gap-2 px-7 py-3 rounded-xl bg-gradient-to-tr from-sky-400 to-blue-700 text-white font-bold shadow-2xl hover:scale-105 hover:from-sky-500 hover:to-blue-800 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-sky-300"
+            onClick={() => setShowCreateModal(true)}
+          >
+            <svg className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+            Nova Tarefa
+          </button>
+        </div>
+      </header>
+
+      {/* Filtros modernos */}
+      <section className="max-w-7xl mx-auto px-4 -mt-8 mb-6 z-10 relative">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Filtro de status */}
+          <div className="bg-gradient-to-br from-white/90 to-sky-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-xl flex flex-col items-center py-4 px-3 transition-all duration-200 border-2 border-sky-200 dark:border-sky-900 hover:border-sky-500 hover:shadow-2xl focus-within:ring-2 focus-within:ring-sky-400">
+            <label htmlFor="filter" className="block text-xs font-semibold text-blue-600 dark:text-blue-300 mb-2 flex items-center gap-1">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707l-7.414 7.414a1 1 0 01-1.414 0L3.293 6.707A1 1 0 013 6V4z" /></svg>
+              Status
+            </label>
+            <select
+              id="filter"
+              className="block w-full rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value as any)}
             >
-              <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              Criar Tarefa
-            </button>
+              <option value="all">Todas</option>
+              <option value="PENDING">Pendentes</option>
+              <option value="IN_PROGRESS">Em Andamento</option>
+              <option value="COMPLETED">Concluídas</option>
+              <option value="BLOCKED">Bloqueadas</option>
+            </select>
+          </div>
+          {/* Filtro de time */}
+          <div className="bg-gradient-to-br from-white/90 to-sky-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-xl flex flex-col items-center py-4 px-3 transition-all duration-200 border-2 border-sky-200 dark:border-sky-900 hover:border-sky-500 hover:shadow-2xl focus-within:ring-2 focus-within:ring-sky-400">
+            <label htmlFor="teamFilter" className="block text-xs font-semibold text-blue-600 dark:text-blue-300 mb-2 flex items-center gap-1">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20a3 3 0 01-5.356-1.857M17 20H7m0 0H2v-2a3 3 0 015.356-1.857M7 20a3 3 0 005.356-1.857M7 20v-2a3 3 0 015.356-1.857M15 11a4 4 0 10-8 0 4 4 0 008 0z" /></svg>
+              Time
+            </label>
+            <select
+              id="teamFilter"
+              className="block w-full rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              value={teamFilter}
+              onChange={(e) => setTeamFilter(e.target.value)}
+            >
+              <option value="all">Todos os times</option>
+              {teams.map(team => (
+                <option key={team.id} value={team.id}>{team.name}</option>
+              ))}
+            </select>
+          </div>
+          {/* Filtro por pessoa responsável */}
+          <div className="bg-gradient-to-br from-white/90 to-sky-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-xl flex flex-col items-center py-4 px-3 transition-all duration-200 border-2 border-sky-200 dark:border-sky-900 hover:border-sky-500 hover:shadow-2xl focus-within:ring-2 focus-within:ring-sky-400">
+            <label htmlFor="userFilter" className="block text-xs font-semibold text-blue-600 dark:text-blue-300 mb-2 flex items-center gap-1">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              Responsável
+            </label>
+            <select
+              id="userFilter"
+              className="block w-full rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              value={userFilter}
+              onChange={(e) => setUserFilter(e.target.value)}
+            >
+              <option value="all">Todos os responsáveis</option>
+              {tasks
+                .filter(task => task.assignee)
+                .reduce((acc: {id: string, name: string}[], task) => {
+                  if (task.assignee && !acc.some(user => user.id === task.assignee?.id)) {
+                    acc.push({
+                      id: String(task.assignee.id),
+                      name: task.assignee.name || task.assignee.email || 'Usuário sem nome'
+                    });
+                  }
+                  return acc;
+                }, [])
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(user => (
+                  <option key={user.id} value={user.id}>{user.name}</option>
+                ))}
+            </select>
+          </div>
+          {/* Filtro de busca */}
+          <div className="bg-gradient-to-br from-white/90 to-sky-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-xl flex flex-col items-center py-4 px-3 transition-all duration-200 border-2 border-sky-200 dark:border-sky-900 hover:border-sky-500 hover:shadow-2xl focus-within:ring-2 focus-within:ring-sky-400">
+            <label htmlFor="search" className="block text-xs font-semibold text-blue-600 dark:text-blue-300 mb-2 flex items-center gap-1">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" /></svg>
+              Buscar
+            </label>
+            <div className="relative w-full">
+              <input
+                type="text"
+                id="search"
+                className="block w-full rounded-md border-gray-300 pl-10 pr-3 py-2 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-400 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-150"
+                placeholder="Buscar por título, descrição, time ou responsável..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Modal de criação/edição de tarefa */}
       {(showCreateModal || editingTask) && (
@@ -678,103 +775,10 @@ const TasksPage = () => {
       )}
 
       {/* Conteúdo principal */}
-      <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+      <div className="w-full p-0 py-6">
+        <div className="w-full p-0">
 
-          {/* Filtros */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Filtro de status */}
-            <div>
-              <label htmlFor="filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Filtrar por status
-              </label>
-              <select
-                id="filter"
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value as any)}
-              >
-                <option value="all">Todas</option>
-                <option value="PENDING">Pendentes</option>
-                <option value="IN_PROGRESS">Em Andamento</option>
-                <option value="COMPLETED">Concluídas</option>
-                <option value="BLOCKED">Bloqueadas</option>
-              </select>
-            </div>
-            {/* Filtro de time */}
-            <div>
-              <label htmlFor="teamFilter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Filtrar por time
-              </label>
-              <select
-                id="teamFilter"
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                value={teamFilter}
-                onChange={(e) => setTeamFilter(e.target.value)}
-              >
-                <option value="all">Todos os times</option>
-                {teams.map(team => (
-                  <option key={team.id} value={team.id}>
-                    {team.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {/* Filtro por pessoa responsável */}
-            <div>
-              <label htmlFor="userFilter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Filtrar por responsável
-              </label>
-              <select
-                id="userFilter"
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                value={userFilter}
-                onChange={(e) => setUserFilter(e.target.value)}
-              >
-                <option value="all">Todos os responsáveis</option>
-                {/* Extrair responsáveis únicos das tarefas existentes */}
-                {tasks
-                  .filter(task => task.assignee) // Filtra apenas tarefas com responsável
-                  .reduce((acc: {id: string, name: string}[], task) => {
-                    // Verifica se o usuário já está no acumulador
-                    if (task.assignee && !acc.some(user => user.id === task.assignee?.id)) {
-                      acc.push({
-                        id: String(task.assignee.id),
-                        name: task.assignee.name || task.assignee.email || 'Usuário sem nome'
-                      });
-                    }
-                    return acc;
-                  }, [])
-                  .sort((a, b) => a.name.localeCompare(b.name)) // Ordena por nome
-                  .map(user => (
-                    <option key={user.id} value={user.id}>
-                      {user.name}
-                    </option>
-                  ))}
-              </select>
-            </div>
-            {/* Filtro de busca */}
-            <div className="w-full">
-              <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Buscar
-              </label>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  id="search"
-                  className="block w-full rounded-md border-gray-300 pl-10 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  placeholder="Buscar por título, descrição, time ou responsável..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
+
           {/* Renderização condicional da lista ou estado vazio */}
           {isLoading ? (
             <div className="text-center py-8">
@@ -816,17 +820,18 @@ const TasksPage = () => {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-2 gap-6">
               {filteredTasks.length > 0 ? (
                 filteredTasks.map((task) => {
                   console.log('Renderizando tarefa:', task.id, task.title);
                   return (
                     <TaskCard
-                      key={task.id}
-                      task={task}
-                      onEdit={() => handleEditTask(task)}
-                      onDelete={() => handleDeleteTask(task.id)}
-                    />
+                       key={task.id}
+                       task={task}
+                       onEdit={() => handleEditTask(task)}
+                       onDelete={() => handleDeleteTask(task.id)}
+                       onClick={() => setSelectedTask(task)}
+                     />
                   );
                 })
               ) : (
@@ -838,6 +843,10 @@ const TasksPage = () => {
           )}
         </div>
       </div>
+      {/* Modal de detalhes da tarefa */}
+      {selectedTask && (
+        <TaskDetailsModal task={selectedTask} onClose={() => setSelectedTask(null)} />
+      )}
     </div>
   );
 }
