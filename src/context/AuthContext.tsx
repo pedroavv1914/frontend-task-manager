@@ -243,16 +243,47 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const promoteToAdmin = async (email: string, _adminPassword: string): Promise<boolean> => {
+  // Função para rebaixar usuário para MEMBER
+  const demoteToMember = async (email: string, _adminPassword: string): Promise<boolean> => {
     if (!token) throw new Error('Usuário não autenticado');
     try {
-      const res = await fetch(`http://localhost:3000/api/users/promote`, {
-        method: 'POST',
+      // Buscar usuário pelo email para obter o id
+      const userToDemote = users.find(u => u.email === email);
+      if (!userToDemote) throw new Error('Usuário não encontrado');
+      if (user && user.id === userToDemote.id) throw new Error('Você não pode rebaixar a si mesmo');
+      const res = await fetch(`http://localhost:3000/api/users/${userToDemote.id}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ role: 'MEMBER' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Erro ao rebaixar usuário');
+      toast.success('Usuário rebaixado a membro!');
+      await loadUsers();
+      return true;
+    } catch (error) {
+      console.error('Erro ao rebaixar usuário:', error);
+      throw error;
+    }
+  };
+
+  // Nova versão de promoteToAdmin
+  const promoteToAdmin = async (email: string, _adminPassword: string): Promise<boolean> => {
+    if (!token) throw new Error('Usuário não autenticado');
+    try {
+      // Buscar usuário pelo email para obter o id
+      const userToPromote = users.find(u => u.email === email);
+      if (!userToPromote) throw new Error('Usuário não encontrado');
+      const res = await fetch(`http://localhost:3000/api/users/${userToPromote.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ role: 'ADMIN' }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Erro ao promover usuário');
@@ -265,28 +296,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const demoteToMember = async (email: string, _adminPassword: string): Promise<boolean> => {
-    if (!token) throw new Error('Usuário não autenticado');
-    if (user && user.email === email) throw new Error('Você não pode rebaixar a si mesmo');
-    try {
-      const res = await fetch(`http://localhost:3000/api/users/demote`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Erro ao rebaixar usuário');
-      toast.success('Usuário rebaixado a membro!');
-      await loadUsers();
-      return true;
-    } catch (error) {
-      console.error('Erro ao rebaixar usuário:', error);
-      throw error;
-    }
-  };
 
   const createUser = async (userData: CreateUserData): Promise<User> => {
     try {
@@ -470,7 +479,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         loading,
       }}
     >
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

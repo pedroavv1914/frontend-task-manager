@@ -33,7 +33,7 @@ const Layout = () => {
       {/* Cabeçalho */}
       {!["/login", "/register"].includes(location.pathname) && (
         <header className="w-full bg-gradient-to-r from-sky-600/80 to-indigo-800/80 shadow-2xl rounded-b-3xl py-5 px-0 mb-10 backdrop-blur-md border-b border-white/10">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 md:gap-8 px-6">
+          <div className="max-w-7xl mx-auto flex flex-row flex-wrap items-center justify-between gap-4 px-6 min-h-[72px]">
             {/* Logo e nome do app */}
             <div className="flex items-center gap-5">
               <div className="bg-white/30 rounded-full p-2 shadow-lg relative overflow-hidden">
@@ -43,7 +43,7 @@ const Layout = () => {
                 </svg>
               </div>
               <span className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-sky-200 to-sky-400 bg-clip-text text-transparent drop-shadow-md select-none">
-                Task <span className="text-white drop-shadow-lg">Manager</span>
+                STRATIX
               </span>
             </div>
             {/* Navegação */}
@@ -53,9 +53,9 @@ const Layout = () => {
                 { to: '/tasks', label: 'Tarefas' },
                 ...(isAdmin ? [
                   { to: '/teams', label: 'Times' },
-                  { to: '/users', label: 'Usuários' }
-                ] : []),
-                { to: '/profile', label: 'Perfil' }
+                  { to: '/users', label: 'Usuários' },
+                  { to: '/profile', label: 'Perfil' }
+                ] : [])
               ].map(link => (
                 <Link
                   key={link.to}
@@ -74,14 +74,25 @@ const Layout = () => {
             </nav>
             {/* Usuário logado */}
             {user && (
-              <div className="flex items-center gap-3 mt-4 md:mt-0">
-                <div className="w-10 h-10 rounded-full bg-sky-300/60 flex items-center justify-center text-xl font-bold text-white shadow-md border-2 border-white/40 select-none">
-                  {user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2)}
+              <div className="flex items-center gap-3 mt-4 md:mt-0 max-w-xs sm:max-w-sm md:max-w-md">
+                <div className="w-10 h-10 rounded-full bg-sky-300/60 flex items-center justify-center text-xl font-bold text-white shadow-md border-2 border-white/40 select-none flex-shrink-0">
+                  {user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                 </div>
-                <span className="text-white font-bold text-base bg-white/10 px-3 py-1 rounded-lg shadow-sm">
-                  {user.name}
-                  {isAdmin && <span className="ml-2 px-2 py-0.5 text-xs rounded bg-yellow-400 text-gray-900 font-bold">ADMIN</span>}
-                </span>
+                <div className="flex flex-col min-w-0">
+                  <span
+                    className="text-white font-bold text-base bg-white/10 px-3 py-1 rounded-lg shadow-sm truncate max-w-[120px] sm:max-w-[160px] md:max-w-[200px]"
+                    title={user.name}
+                  >
+                    {user.name}
+                    {isAdmin && (
+                      <span className="ml-2 px-2 py-0.5 text-xs rounded bg-yellow-400 text-gray-900 font-bold whitespace-nowrap">
+                        ADMIN
+                      </span>
+                    )}
+                  </span>
+                  {/* Para mostrar o email truncado abaixo do nome, descomente a linha abaixo: */}
+                  {/* <span className="text-xs text-white/80 truncate max-w-[120px]" title={user.email}>{user.email}</span> */}
+                </div>
               </div>
             )}
           </div>

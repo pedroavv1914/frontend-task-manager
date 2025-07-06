@@ -12,7 +12,7 @@ const UsersPage = () => {
     });
   }, []);
 
-  const { users, user: currentUser, promoteToAdmin, demoteToMember, createUser } = useAuth();
+  const { users, user: currentUser, promoteToAdmin, demoteToMember, createUser, updateUser } = useAuth();
   const [password, setPassword] = useState('');
   const [selectedUser, setSelectedUser] = useState<{email: string; action: 'promote' | 'demote'} | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -31,6 +31,75 @@ const UsersPage = () => {
   });
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
   const [isCreating, setIsCreating] = useState(false);
+
+  // Modal de edição de usuário
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    id: '',
+    name: '',
+    email: '',
+    role: 'MEMBER' as UserRole,
+    bio: '',
+    password: '',
+    confirmPassword: '',
+  });
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+  const [isEditing, setIsEditing] = useState(false);
+
+  const openEditModal = (user: any) => {
+    setEditForm({
+      id: user.id,
+      name: user.name || '',
+      email: user.email || '',
+      role: user.role,
+      bio: user.bio || '',
+      password: '',
+      confirmPassword: '',
+    });
+    setEditErrors({});
+    setShowEditModal(true);
+  };
+
+  const handleEditInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setEditForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const validateEditForm = () => {
+    const errors: Record<string, string> = {};
+    if (!editForm.name.trim()) errors.name = 'Nome obrigatório';
+    if (!editForm.email.trim()) errors.email = 'E-mail obrigatório';
+    else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(editForm.email)) errors.email = 'E-mail inválido';
+    if (editForm.password && editForm.password.length < 6) errors.password = 'Mínimo 6 caracteres';
+    if (editForm.password !== editForm.confirmPassword) errors.confirmPassword = 'Senhas não conferem';
+    return errors;
+  };
+
+  const handleEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errors = validateEditForm();
+    setEditErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+    try {
+      setIsEditing(true);
+      await updateUser({
+        id: editForm.id,
+        name: editForm.name,
+        email: editForm.email,
+        role: editForm.role,
+        bio: editForm.bio,
+        ...(editForm.password ? { newPassword: editForm.password } : {}),
+      });
+      setShowEditModal(false);
+      setEditForm({ id: '', name: '', email: '', role: 'MEMBER', bio: '', password: '', confirmPassword: '' });
+      setEditErrors({});
+    } catch (error) {
+      setEditErrors({ submit: error instanceof Error ? error.message : 'Erro ao editar usuário' });
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
 
   // Validação simples
   const validateCreateForm = () => {
@@ -248,19 +317,28 @@ const UsersPage = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             {user.id !== currentUser?.id && (
-                              <button
-                                type="button"
-                                onClick={() => setSelectedUser({
-                                  email: user.email,
-                                  action: user.role === 'ADMIN' ? 'demote' : 'promote'
-                                })}
-                                className={`mr-3 ${user.role === 'ADMIN' 
-                                  ? 'text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300'
-                                  : 'text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300'
-                                }`}
-                              >
-                                {user.role === 'ADMIN' ? 'Rebaixar' : 'Tornar Admin'}
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => openEditModal(user)}
+                                  className="mr-3 text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedUser({
+                                    email: user.email,
+                                    action: user.role === 'ADMIN' ? 'demote' : 'promote'
+                                  })}
+                                  className={`${user.role === 'ADMIN' 
+                                    ? 'text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300'
+                                    : 'text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300'
+                                  }`}
+                                >
+                                  {user.role === 'ADMIN' ? 'Rebaixar' : 'Tornar Admin'}
+                                </button>
+                              </>
                             )}
                           </td>
                         </tr>
@@ -391,6 +469,63 @@ const UsersPage = () => {
                 <button type="button" onClick={() => setShowCreateModal(false)} className="px-4 py-2 rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600">Cancelar</button>
                 <button type="submit" disabled={isCreating} className="px-4 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50">
                   {isCreating ? 'Salvando...' : 'Salvar Usuário'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Modal de edição de usuário */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-40 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md p-8 relative">
+            <button
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              onClick={() => setShowEditModal(false)}
+            >
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Editar Usuário</h2>
+            <form onSubmit={handleEditUser} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Nome</label>
+                <input name="name" value={editForm.name} onChange={handleEditInput} className={`w-full px-3 py-2 rounded border ${editErrors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 text-gray-900 dark:text-white`} />
+                {editErrors.name && <span className="text-xs text-red-500">{editErrors.name}</span>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">E-mail</label>
+                <input name="email" type="email" value={editForm.email} onChange={handleEditInput} className={`w-full px-3 py-2 rounded border ${editErrors.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 text-gray-900 dark:text-white`} disabled />
+                {editErrors.email && <span className="text-xs text-red-500">{editErrors.email}</span>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Função</label>
+                <select name="role" value={editForm.role} onChange={handleEditInput} className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" disabled={editForm.id === currentUser?.id}>
+                  <option value="MEMBER">Membro</option>
+                  <option value="ADMIN">Administrador</option>
+                </select>
+                {editForm.id === currentUser?.id && (
+                  <span className="text-xs text-yellow-600">Você não pode alterar seu próprio papel.</span>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Bio (opcional)</label>
+                <textarea name="bio" value={editForm.bio} onChange={handleEditInput} rows={2} className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Nova Senha (opcional)</label>
+                <input name="password" type="password" value={editForm.password} onChange={handleEditInput} className={`w-full px-3 py-2 rounded border ${editErrors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 text-gray-900 dark:text-white`} />
+                {editErrors.password && <span className="text-xs text-red-500">{editErrors.password}</span>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Confirmar Nova Senha</label>
+                <input name="confirmPassword" type="password" value={editForm.confirmPassword} onChange={handleEditInput} className={`w-full px-3 py-2 rounded border ${editErrors.confirmPassword ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 text-gray-900 dark:text-white`} />
+                {editErrors.confirmPassword && <span className="text-xs text-red-500">{editErrors.confirmPassword}</span>}
+              </div>
+              {editErrors.submit && <div className="text-red-500 text-sm">{editErrors.submit}</div>}
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setShowEditModal(false)} className="px-4 py-2 rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600">Cancelar</button>
+                <button type="submit" disabled={isEditing} className="px-4 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50">
+                  {isEditing ? 'Salvando...' : 'Salvar Alterações'}
                 </button>
               </div>
             </form>
