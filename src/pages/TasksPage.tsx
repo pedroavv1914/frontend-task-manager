@@ -88,10 +88,10 @@ const TasksPage = () => {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    
+
     // Define o tipo para as chaves do objeto newTask
     type TaskInputField = keyof typeof newTask;
-    
+
     // Se o time for alterado, limpa o responsável
     if (name === 'teamId') {
       setNewTask(prev => ({
@@ -99,12 +99,12 @@ const TasksPage = () => {
         teamId: value,
         assignedTo: '' // Limpa o responsável ao mudar o time
       }));
-      
+
       // Se houver um time selecionado, verifica se o usuário atual é membro
       if (value) {
         const selectedTeam = teams.find(team => String(team.id) === value);
-        if (selectedTeam && newTask.assignedTo && 
-            !selectedTeam.members?.some(member => String(member.userId) === String(newTask.assignedTo))) {
+        if (selectedTeam && newTask.assignedTo &&
+          !selectedTeam.members?.some(member => String(member.userId) === String(newTask.assignedTo))) {
           setNewTask(prev => ({
             ...prev,
             assignedTo: '' // Limpa o responsável se não for membro do time
@@ -120,7 +120,7 @@ const TasksPage = () => {
   // Handler de submit do formulário/modal
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     setIsSubmitting(true);
 
     try {
@@ -134,9 +134,9 @@ const TasksPage = () => {
         teamId: newTask.teamId,
 
       };
-      
 
-      
+
+
       await createTask(taskData);
 
       // Fecha o modal e limpa o formulário
@@ -150,10 +150,10 @@ const TasksPage = () => {
         teamId: '',
 
       });
-      
+
       // Recarrega as tarefas
       await fetchTasks();
-      
+
       // Exibe mensagem de sucesso
       toast.success('Tarefa criada com sucesso!');
     } catch (error) {
@@ -208,7 +208,7 @@ const TasksPage = () => {
               }
               if ('name' in m) safeObj['name'] = (m as any).name;
               if ('email' in m) safeObj['email'] = (m as any).email;
-              
+
               return {
                 ...safeObj,
                 allKeys: Object.keys(m),
@@ -226,47 +226,47 @@ const TasksPage = () => {
 
         // BYPASS TEMPORÁRIO PARA TESTES - remover depois de resolver o problema
         const BYPASS_VALIDATION = true;
-        
+
         if (selectedTeam && selectedTeam.members && !BYPASS_VALIDATION) {
           // Verificação mais robusta considerando diferentes estruturas de dados de membros do time
           const memberMatches = selectedTeam.members.some(member => {
             // Para depuração - analisa cada membro individualmente
             let matchResult = false;
-            
+
             // Possibilidades de IDs do membro
             const possibleIds: string[] = [];
-            
+
             // Caso 1: member é um objeto User com id direto
             if (member && typeof member === 'object' && 'id' in member) {
               // Usar type assertion para resolver o problema de tipagem
-              const memberId = (member as {id: string | number}).id;
+              const memberId = (member as { id: string | number }).id;
               possibleIds.push(String(memberId));
             }
-            
+
             // Caso 2: member é um objeto com userId
             if (member && typeof member === 'object' && 'userId' in (member as any)) {
-              const userId = (member as {userId: string | number}).userId;
+              const userId = (member as { userId: string | number }).userId;
               possibleIds.push(String(userId));
             }
-            
+
             // Caso 3: member tem propriedade user aninhada com id
-            if (member && typeof member === 'object' && 'user' in (member as any) && 
-                (member as any).user && typeof (member as any).user === 'object' && 
-                'id' in (member as any).user) {
+            if (member && typeof member === 'object' && 'user' in (member as any) &&
+              (member as any).user && typeof (member as any).user === 'object' &&
+              'id' in (member as any).user) {
               // Usar tipagem explícita para acessar user.id
-              const nestedUserId = (member as {user: {id: string | number}}).user.id;
+              const nestedUserId = (member as { user: { id: string | number } }).user.id;
               possibleIds.push(String(nestedUserId));
             }
-            
+
             // Caso 4: member é uma string direta
             if (typeof member === 'string') {
               possibleIds.push(String(member));
             }
-            
+
             // Verifica se algum dos IDs possíveis corresponde ao ID do usuário atribuído
             const assignedToId = String(newTask.assignedTo);
             matchResult = possibleIds.some(id => id === assignedToId);
-            
+
             // Log de depuração individual para cada membro
             console.log(`Comparando membro:`, {
               possibleIds,
@@ -274,44 +274,44 @@ const TasksPage = () => {
               match: matchResult,
               member: typeof member === 'object' ? JSON.stringify(member).substring(0, 100) : member
             });
-            
+
             return matchResult;
           });
-          
+
           if (!memberMatches) {
             console.log('Validação falhou:', {
               teamId: newTask.teamId,
               assignedToId: String(newTask.assignedTo),
               teamMemberIds: selectedTeam.members.flatMap(m => {
                 const ids: string[] = [];
-                
+
                 if (typeof m === 'object' && m !== null) {
                   // Usar tipagens explícitas para resolver problemas
                   if ('id' in m) {
-                    const id = (m as {id: string | number}).id;
+                    const id = (m as { id: string | number }).id;
                     ids.push(String(id));
                   }
                   if ('userId' in (m as any)) {
-                    const userId = (m as {userId: string | number}).userId;
+                    const userId = (m as { userId: string | number }).userId;
                     ids.push(String(userId));
                   }
                   if ('user' in (m as any) && (m as any).user && 'id' in (m as any).user) {
-                    const nestedId = (m as {user: {id: string | number}}).user.id;
+                    const nestedId = (m as { user: { id: string | number } }).user.id;
                     ids.push(String(nestedId));
                   }
                 } else if (typeof m === 'string') {
                   ids.push(String(m));
                 }
-                
+
                 return ids;
               })
             });
-            
+
             // Se chegamos até aqui com bypass desativado, lançamos o erro
             throw new Error('O usuário atribuído deve ser membro do time selecionado');
           }
         }
-        
+
         // Log para indicar que o bypass está ativo
         if (BYPASS_VALIDATION) {
           console.log('AVISO: Validação de membro do time desativada temporariamente para testes');
@@ -325,11 +325,11 @@ const TasksPage = () => {
         priority: newTask.priority,
 
       };
-      
+
       // Se houver um time selecionado, adiciona ao updateData
       if (newTask.teamId) {
         updateData.teamId = newTask.teamId;
-        
+
         // Se houver um usuário atribuído, verifica se é membro do time
         if (newTask.assignedTo) {
           updateData.assignedTo = [newTask.assignedTo];
@@ -342,11 +342,11 @@ const TasksPage = () => {
         updateData.teamId = '';
         updateData.assignedTo = [];
       }
-      
+
       console.log('Enviando dados para atualização:', updateData);
 
       await updateTask(editingTask.id, updateData);
-      
+
       // Fecha o modal e limpa o estado
       setEditingTask(null);
       setNewTask({
@@ -357,10 +357,10 @@ const TasksPage = () => {
         assignedTo: '',
         teamId: ''
       });
-      
+
       // Recarrega as tarefas
       await fetchTasks();
-      
+
       toast.success('Tarefa atualizada com sucesso!');
     } catch (error) {
       console.error('Erro ao atualizar tarefa:', error);
@@ -408,7 +408,7 @@ const TasksPage = () => {
       if (teamFilter !== 'all') {
         // Converte teamFilter para número para compatibilidade com task.team?.id
         const teamFilterNumber = Number(teamFilter);
-        
+
         // Compara os valores convertendo para o mesmo tipo
         if (!task.team || Number(task.team.id) !== teamFilterNumber) {
           console.log(`❌ Time não corresponde: "${task.team?.id || 'Sem time'}" !== "${teamFilter}" (${teamFilterNumber})`);
@@ -416,7 +416,7 @@ const TasksPage = () => {
         }
         console.log(`✅ Time corresponde: ${task.team.id} === ${teamFilterNumber}`);
       }
-      
+
       // Filtro por pessoa responsável
       if (userFilter !== 'all') {
         const userFilterNumber = Number(userFilter);
@@ -487,23 +487,31 @@ const TasksPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Cabeçalho moderno */}
-      <header className="w-full bg-white dark:bg-gray-800 ">
-        <div className="w-full px-6 py-12 flex flex-col md:flex-row items-center justify-between gap-8">
-          <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-blue-900 dark:text-white drop-shadow-lg mb-2 flex items-center gap-3">
-              <svg className="h-10 w-10 text-sky-200" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              Minhas Tarefas
-            </h1>
-            <p className="text-gray-700 dark:text-gray-300 text-lg font-medium drop-shadow-sm">Organize, priorize e conclua suas atividades com facilidade.</p>
+
+      <header className="rounded-2xl bg-gradient-to-r from-blue-500/90 via-sky-500/90 to-indigo-600/90 dark:from-blue-900 dark:via-blue-950 dark:to-indigo-950 shadow-xl mb-12 p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-full bg-white/20 dark:bg-gray-900/40 shadow-lg">
+            <svg className="h-10 w-10 text-sky-200" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
           </div>
-          <button
-            className="flex items-center gap-2 px-7 py-3 rounded-xl bg-gradient-to-tr from-sky-400 to-blue-700 text-white font-bold shadow-2xl hover:scale-105 hover:from-sky-500 hover:to-blue-800 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-sky-300"
-            onClick={() => setShowCreateModal(true)}
-          >
-            <svg className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-            Nova Tarefa
-          </button>
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-white drop-shadow dark:text-blue-100 flex items-center gap-2">
+              Tarefas
+              <span className="inline-block ml-2 px-2 py-0.5 rounded bg-white/20 text-base font-semibold text-white dark:text-blue-100 tracking-wide">Beta</span>
+            </h1>
+            <p className="mt-2 text-lg text-blue-100 dark:text-blue-200 font-medium max-w-xl">Organize, priorize e conclua suas atividades com facilidade.</p>
+          </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setShowCreateModal(true)}
+          className="inline-flex items-center px-6 py-3 text-base font-bold text-white bg-gradient-to-r from-indigo-500 via-sky-500 to-blue-500 rounded-xl shadow-lg hover:scale-105 hover:from-blue-600 hover:to-indigo-700 focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-900 transition-all duration-200"
+        >
+          <svg className="w-6 h-6 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Nova Tarefa
+        </button>
       </header>
 
       {/* Filtros modernos */}
@@ -561,7 +569,7 @@ const TasksPage = () => {
               <option value="all">Todos os responsáveis</option>
               {tasks
                 .filter(task => task.assignee)
-                .reduce((acc: {id: string, name: string}[], task) => {
+                .reduce((acc: { id: string, name: string }[], task) => {
                   if (task.assignee && !acc.some(user => user.id === task.assignee?.id)) {
                     acc.push({
                       id: String(task.assignee.id),
@@ -811,12 +819,12 @@ const TasksPage = () => {
                   console.log('Renderizando tarefa:', task.id, task.title);
                   return (
                     <TaskCard
-                       key={task.id + '-' + task.createdAt + '-' + idx}
-                       task={task}
-                       onEdit={() => handleEditTask(task)}
-                       onDelete={() => handleDeleteTask(task.id)}
-                       onClick={() => setSelectedTask(task)}
-                     />
+                      key={task.id + '-' + task.createdAt + '-' + idx}
+                      task={task}
+                      onEdit={() => handleEditTask(task)}
+                      onDelete={() => handleDeleteTask(task.id)}
+                      onClick={() => setSelectedTask(task)}
+                    />
                   );
                 })
               ) : (
