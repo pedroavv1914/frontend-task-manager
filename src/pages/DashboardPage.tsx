@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardHero } from '../components/DashboardHero';
 import { DashboardSidebar } from '../components/DashboardSidebar';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { StatusBadge, PriorityBadge } from '../components/ui/Badge';
@@ -193,7 +192,7 @@ const DashboardPage = () => {
                     </div>
                   ) : tasks.length === 0 ? (
                     <div className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                      Nenhuma tarefa encontrada. <Link to="/tasks/new" className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">Crie uma nova tarefa</Link> para começar.
+                      Nenhuma tarefa encontrada.
                     </div>
                   ) : (
                     <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-600 rounded-2xl overflow-hidden shadow-xl">
