@@ -147,7 +147,7 @@ const TaskForm = ({ isEditing = false, initialData }: TaskFormProps) => {
       dueDate: formData.dueDate,
       priority: formData.priority,
       assignedTo: formData.assignedUserId ? [formData.assignedUserId] : [],
-      teamId: formData.teamId
+      teamId: formData.teamId || ''
     };
     
     setIsLoading(true);

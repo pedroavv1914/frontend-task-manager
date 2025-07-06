@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-import { CreateTaskData } from './types';
+import { CreateTaskData } from '../types';
 import { Task, Team, CreateTeamData, UpdateTaskData, UpdateTeamData, TaskWithDetails, TeamWithMembers, TaskStatus } from '../types';
 import { api } from '../config/api';
 
