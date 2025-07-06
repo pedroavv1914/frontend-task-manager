@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { useTasks } from '../context/TaskContext';
 import { useTeams } from '../context/TeamContext';
@@ -10,6 +10,8 @@ import TaskCard from '../components/TaskCard';
 import TaskDetailsModal from '../components/TaskDetailsModal';
 
 const TasksPage = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
   // Limpa localStorage de tasks/teams/users ao carregar a página (exceto token)
   useEffect(() => {
     Object.keys(localStorage).forEach(key => {
@@ -502,16 +504,18 @@ const TasksPage = () => {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center px-6 py-3 text-base font-bold text-white bg-gradient-to-r from-indigo-500 via-sky-500 to-blue-500 rounded-xl shadow-lg hover:scale-105 hover:from-blue-600 hover:to-indigo-700 focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-900 transition-all duration-200"
-        >
-          <svg className="w-6 h-6 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-          </svg>
-          Nova Tarefa
-        </button>
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex items-center px-6 py-3 text-base font-bold text-white bg-gradient-to-r from-indigo-500 via-sky-500 to-blue-500 rounded-xl shadow-lg hover:scale-105 hover:from-blue-600 hover:to-indigo-700 focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-900 transition-all duration-200"
+          >
+            <svg className="w-6 h-6 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Nova Tarefa
+          </button>
+        )}
       </header>
 
       {/* Filtros modernos */}
@@ -536,24 +540,27 @@ const TasksPage = () => {
               <option value="BLOCKED">Bloqueadas</option>
             </select>
           </div>
-          {/* Filtro de time */}
-          <div className="bg-gradient-to-br from-white/90 to-sky-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-xl flex flex-col items-center py-4 px-3 transition-all duration-200 border-2 border-sky-200 dark:border-sky-900 hover:border-sky-500 hover:shadow-2xl focus-within:ring-2 focus-within:ring-sky-400">
-            <label htmlFor="teamFilter" className="block text-xs font-semibold text-blue-600 dark:text-blue-300 mb-2 flex items-center gap-1">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20a3 3 0 01-5.356-1.857M17 20H7m0 0H2v-2a3 3 0 015.356-1.857M7 20a3 3 0 005.356-1.857M7 20v-2a3 3 0 015.356-1.857M15 11a4 4 0 10-8 0 4 4 0 008 0z" /></svg>
-              Time
-            </label>
-            <select
-              id="teamFilter"
-              className="block w-full rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              value={teamFilter}
-              onChange={(e) => setTeamFilter(e.target.value)}
-            >
-              <option value="all">Todos os times</option>
-              {teams.map(team => (
-                <option key={team.id} value={team.id}>{team.name}</option>
-              ))}
-            </select>
-          </div>
+
+          {isAdmin && (
+            <div className="bg-gradient-to-br from-white/90 to-sky-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-xl flex flex-col items-center py-4 px-3 transition-all duration-200 border-2 border-sky-200 dark:border-sky-900 hover:border-sky-500 hover:shadow-2xl focus-within:ring-2 focus-within:ring-sky-400">
+              <label htmlFor="teamFilter" className="block text-xs font-semibold text-blue-600 dark:text-blue-300 mb-2 flex items-center gap-1">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20a3 3 0 01-5.356-1.857M17 20H7m0 0H2v-2a3 3 0 015.356-1.857M7 20a3 3 0 005.356-1.857M7 20v-2a3 3 0 015.356-1.857M15 11a4 4 0 10-8 0 4 4 0 008 0z" /></svg>
+                Time
+              </label>
+              <select
+                id="teamFilter"
+                className="block w-full rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                value={teamFilter}
+                onChange={(e) => setTeamFilter(e.target.value)}
+              >
+                <option value="all">Todos os times</option>
+                {teams.map(team => (
+                  <option key={team.id} value={team.id}>{team.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Filtro por pessoa responsável */}
           <div className="bg-gradient-to-br from-white/90 to-sky-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-xl flex flex-col items-center py-4 px-3 transition-all duration-200 border-2 border-sky-200 dark:border-sky-900 hover:border-sky-500 hover:shadow-2xl focus-within:ring-2 focus-within:ring-sky-400">
             <label htmlFor="userFilter" className="block text-xs font-semibold text-blue-600 dark:text-blue-300 mb-2 flex items-center gap-1">
@@ -800,35 +807,28 @@ const TasksPage = () => {
                   ? 'Tente ajustar sua busca ou filtros.'
                   : 'Crie uma nova tarefa para começar.'}
               </p>
-              <div className="mt-6">
-                <Link
-                  to="/tasks/new"
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                  </svg>
-                  Nova Tarefa
-                </Link>
-              </div>
             </div>
           ) : (
-            <div className="mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8 justify-items-center">
+            <div className="w-full flex flex-wrap gap-8 justify-center items-stretch">
               {filteredTasks.length > 0 ? (
-                filteredTasks.map((task, idx) => {
-                  console.log('Renderizando tarefa:', task.id, task.title);
-                  return (
+                filteredTasks.map((task, idx) => (
+                  <div
+                    key={task.id + '-' + task.createdAt + '-' + idx}
+                    className="group relative flex flex-col overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800 bg-gradient-to-br from-white via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-gray-800 dark:to-blue-950 shadow-xl transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:border-blue-400 dark:hover:border-blue-500 transform hover:scale-[1.025]"
+                    tabIndex={0}
+                    aria-label={`Tarefa ${task.title}`}
+                    style={{ minWidth: '320px', maxWidth: '420px', flex: '1 1 340px', marginBottom: '24px' }}
+                  >
                     <TaskCard
-                      key={task.id + '-' + task.createdAt + '-' + idx}
                       task={task}
                       onEdit={() => handleEditTask(task)}
-                      onDelete={() => handleDeleteTask(task.id)}
+                      onDelete={isAdmin ? () => handleDeleteTask(task.id) : undefined}
                       onClick={() => setSelectedTask(task)}
                     />
-                  );
-                })
+                  </div>
+                ))
               ) : (
-                <div className="col-span-full text-center py-8">
+                <div className="w-full text-center py-8">
                   <p className="text-gray-500">Nenhuma tarefa encontrada com os filtros atuais.</p>
                 </div>
               )}

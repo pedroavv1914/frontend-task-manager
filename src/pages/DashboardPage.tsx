@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { DashboardHero } from '../components/DashboardHero';
+import { DashboardSidebar } from '../components/DashboardSidebar';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -14,6 +16,12 @@ interface Task {
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
   createdAt: string;
   updatedAt: string;
+  assignedTo?: number[];
+  assignee?: {
+    id: number;
+    name: string;
+    avatar?: string;
+  };
 }
 
 const DashboardPage = () => {
@@ -73,15 +81,41 @@ const DashboardPage = () => {
   }, []);
 
   return (
-    <div className="py-8 min-h-screen bg-gradient-to-br from-sky-50 via-indigo-50 to-white dark:from-gray-900 dark:via-gray-950 dark:to-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-        <div className="mb-8 p-6 rounded-3xl shadow-2xl border-2 border-sky-400 bg-gradient-to-tr from-white via-sky-50 to-indigo-100 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white drop-shadow-sm">
-            Olá, <span className="text-sky-600 dark:text-sky-400">{user?.name || 'Usuário'}</span>
-          </h1>
-          <p className="mt-2 text-lg text-gray-600 dark:text-gray-300">
-            Aqui está o resumo das suas atividades
-          </p>
+    <div className="py-8  bg-gradient-to-br from-sky-50 via-indigo-50 to-white dark:from-gray-900 dark:via-gray-950 dark:to-gray-900">
+      <div className="mx-auto px-4 sm:px-6 md:px-8">
+        {/* Bloco Hero + Sidebar Dashboard preenchendo o topo */}
+        <div className="flex flex-col md:flex-row gap-8 w-full">
+          <div className="flex-1 min-w-0">
+            {(() => {
+              const userId = Number(user?.id);
+              return (
+                <DashboardHero
+                  userName={user?.name || 'Usuário'}
+                  avatarUrl={user?.avatar}
+                  completed={tasks.filter(t =>
+                    t.status === 'COMPLETED' &&
+                    (
+                      (Array.isArray(t.assignedTo) && userId && t.assignedTo.includes(userId)) ||
+                      (t.assignee?.id === userId)
+                    )
+                  ).length}
+                  total={tasks.filter(t =>
+                    (Array.isArray(t.assignedTo) && userId && t.assignedTo.includes(userId)) ||
+                    (t.assignee?.id === userId)
+                  ).length}
+                />
+              );
+            })()}
+
+          </div>
+          <DashboardSidebar
+            recentTasks={tasks
+              .slice()
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .slice(0, 3)
+              .map(t => ({ id: t.id, title: t.title, status: t.status, createdAt: t.createdAt }))}
+            onNewTask={() => alert('Funcionalidade de nova tarefa em breve!')}
+          />
         </div>
 
         <div className="mt-8 grid grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-4">
