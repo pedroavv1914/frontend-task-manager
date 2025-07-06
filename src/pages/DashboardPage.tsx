@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { StatusBadge, PriorityBadge } from '../components/ui/Badge';
+import TaskDetailsModal from '../components/TaskDetailsModal';
+import { TaskWithDetails } from '../types';
 
 // Tipos para as tarefas
 interface Task {
@@ -17,6 +19,7 @@ interface Task {
 }
 
 const DashboardPage = () => {
+  const [selectedTask, setSelectedTask] = useState<TaskWithDetails | null>(null);
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,23 +76,25 @@ const DashboardPage = () => {
   }, []);
 
   return (
-    <div className="py-6">
+    <div className="py-8 min-h-screen bg-gradient-to-br from-sky-50 via-indigo-50 to-white dark:from-gray-900 dark:via-gray-950 dark:to-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-          Olá, {user?.name || 'Usuário'}
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Aqui está o resumo das suas atividades
-        </p>
+        <div className="mb-8 p-6 rounded-3xl shadow-2xl border-2 border-sky-400 bg-gradient-to-tr from-white via-sky-50 to-indigo-100 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white drop-shadow-sm">
+            Olá, <span className="text-sky-600 dark:text-sky-400">{user?.name || 'Usuário'}</span>
+          </h1>
+          <p className="mt-2 text-lg text-gray-600 dark:text-gray-300">
+            Aqui está o resumo das suas atividades
+          </p>
+        </div>
 
-        <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-4">
           {/* Cartões de resumo */}
           {[
             { 
               title: 'Tarefas Pendentes', 
               value: tasks.filter(t => t.status === 'PENDING').length,
               icon: '📝',
-              color: 'bg-yellow-500',
+              color: 'bg-yellow-400',
             },
             { 
               title: 'Em Andamento', 
@@ -108,29 +113,27 @@ const DashboardPage = () => {
               value: tasks.filter(t => t.status === 'BLOCKED').length,
               icon: '⛔',
               color: 'bg-red-500',
-            }, 
+            },
           ].map((stat, statIdx) => (
             <div
               key={statIdx}
-              className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg"
+              className={`group bg-gradient-to-tr ${stat.color} to-indigo-400 dark:to-indigo-700 overflow-hidden shadow-xl rounded-2xl border-2 border-sky-200 dark:border-sky-700 transition-transform hover:scale-105 hover:shadow-2xl`}
             >
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className={`flex-shrink-0 rounded-md p-3 ${stat.color}`}>
-                    <span className="text-white text-xl">{stat.icon}</span>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-300 truncate">
-                        {stat.title}
-                      </dt>
-                      <dd>
-                        <div className="text-lg font-medium text-gray-900 dark:text-white">
-                          {stat.value}
-                        </div>
-                      </dd>
-                    </dl>
-                  </div>
+              <div className="p-6 flex items-center gap-5">
+                <div className="flex-shrink-0 rounded-full bg-white/30 dark:bg-gray-900/40 p-4 shadow group-hover:scale-110 transition-transform">
+                  <span className="text-3xl">{stat.icon}</span>
+                </div>
+                <div className="w-0 flex-1">
+                  <dl>
+                    <dt className="text-base font-semibold text-gray-700 dark:text-gray-200 truncate">
+                      {stat.title}
+                    </dt>
+                    <dd>
+                      <div className="text-3xl font-extrabold text-gray-900 dark:text-white drop-shadow-sm">
+                        {stat.value}
+                      </div>
+                    </dd>
+                  </dl>
                 </div>
               </div>
             </div>
@@ -147,14 +150,6 @@ const DashboardPage = () => {
                 Uma lista de todas as suas tarefas recentes.
               </p>
             </div>
-            <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-              <Link
-                to="/tasks/new"
-                className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto"
-              >
-                Adicionar Tarefa
-              </Link>
-            </div>
           </div>
           
           <div className="mt-8 flex flex-col">
@@ -170,8 +165,8 @@ const DashboardPage = () => {
                       Nenhuma tarefa encontrada. <Link to="/tasks/new" className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">Crie uma nova tarefa</Link> para começar.
                     </div>
                   ) : (
-                    <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-600">
-                      <thead className="bg-gray-50 dark:bg-gray-700">
+                    <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-600 rounded-2xl overflow-hidden shadow-xl">
+                      <thead className="bg-gradient-to-r from-sky-100 via-indigo-100 to-white dark:from-gray-800 dark:via-gray-900 dark:to-gray-800">
                         <tr>
                           <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">
                             Tarefa
@@ -183,7 +178,7 @@ const DashboardPage = () => {
                             Prioridade
                           </th>
                           <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">
-                            Vencimento
+                            Responsável
                           </th>
                           <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
                             <span className="sr-only">Ações</span>
@@ -192,11 +187,11 @@ const DashboardPage = () => {
                       </thead>
                       <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
                         {tasks.slice(0, 5).map((task) => (
-                          <tr key={task.id}>
+                          <tr key={task.id} className="transition-colors hover:bg-sky-50 dark:hover:bg-gray-900">
                             <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6">
                               <div className="font-medium">{task.title}</div>
-                              <div className="text-gray-500 dark:text-gray-400 text-xs mt-1 line-clamp-1">
-                                {task.description}
+                              <div className="text-gray-500 dark:text-gray-400 text-xs mt-1 truncate max-w-xs">
+                                {task.description && task.description.length > 60 ? `${task.description.slice(0, 60)}...` : task.description}
                               </div>
                             </td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm">
@@ -205,16 +200,26 @@ const DashboardPage = () => {
                             <td className="whitespace-nowrap px-3 py-4 text-sm">
                               <PriorityBadge priority={task.priority} className="text-xs" />
                             </td>
-                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">
-                              {new Date(task.dueDate).toLocaleDateString('pt-BR')}
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-700 dark:text-gray-200">
+                              {'assignee' in task && task.assignee && typeof task.assignee === 'object' && 'name' in task.assignee && typeof (task.assignee as { name: string }).name === 'string' ? (
+                                <span className="inline-flex items-center gap-2">
+                                  <span className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-sm shadow bg-gradient-to-br from-blue-400 to-blue-700 border-2 border-white dark:border-gray-800">
+                                    {(task.assignee as { name: string }).name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0,2)}
+                                  </span>
+                                  <span>{(task.assignee as { name: string }).name}</span>
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">Não atribuído</span>
+                              )}
                             </td>
                             <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                              <Link
-                                to={`/tasks/${task.id}`}
-                                className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4"
+                              <button
+                                type="button"
+                                onClick={() => setSelectedTask(task as TaskWithDetails)}
+                                className="inline-block px-4 py-2 rounded-lg bg-gradient-to-r from-sky-400 to-indigo-500 text-white font-semibold shadow hover:from-sky-500 hover:to-indigo-600 dark:bg-gradient-to-r dark:from-sky-700 dark:to-indigo-800 dark:hover:from-sky-600 dark:hover:to-indigo-700 transition"
                               >
                                 Ver detalhes
-                              </Link>
+                              </button>
                             </td>
                           </tr>
                         ))}
