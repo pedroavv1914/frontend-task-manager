@@ -34,7 +34,7 @@ const TaskCard = ({ task, onEdit, onDelete, onClick }: TaskCardProps) => {
   
   return (
     <div
-      className={`h-full flex flex-col rounded-2xl overflow-hidden bg-white dark:bg-gray-800 shadow-xl hover:shadow-2xl hover:scale-[1.025] transition-all duration-300 border-none group cursor-pointer`}
+      className={`max-w-lg w-full mx-auto h-full flex flex-col rounded-2xl overflow-hidden bg-white dark:bg-gray-800 shadow-xl hover:shadow-2xl hover:scale-[1.025] transition-all duration-300 border-none group cursor-pointer`}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -49,7 +49,7 @@ const TaskCard = ({ task, onEdit, onDelete, onClick }: TaskCardProps) => {
           'bg-gradient-to-r from-gray-300 to-gray-400'
         }`
       } />
-      <div className="max-w-[600px] w-full min-h-[240px] p-6 flex-1 flex flex-col overflow-hidden">
+      <div className="w-full min-h-[240px] p-6 flex-1 flex flex-col overflow-hidden">
         {/* Cabeçalho: título e botões */}
         <div className="flex items-start justify-between mb-3">
           <div>
@@ -117,29 +117,6 @@ const TaskCard = ({ task, onEdit, onDelete, onClick }: TaskCardProps) => {
           </p>
         </div>
 
-
-
-        {/* Rodapé: data à esquerda, avatar pequeno à direita */}
-        <div className="flex items-center justify-between border-t border-gray-100 dark:border-gray-700 pt-3 mt-auto">
-          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-            <svg className="h-3.5 w-3.5 mr-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <span>
-              {task.dueDate 
-                ? (() => {
-                    try {
-                      const formattedDate = format(new Date(task.dueDate), 'dd/MM/yyyy');
-                      return formattedDate;
-                    } catch {
-                      return 'Data inválida';
-                    }
-                  })() 
-                : 'Sem data'}
-            </span>
-          </div>
-
-        </div>
       </div>
     </div>
   );

@@ -45,12 +45,6 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({ task, onClose }) =>
             <span className="text-sm text-gray-400">Não atribuído</span>
           )}
         </div>
-        <div className="mb-2 flex items-center gap-2">
-          <span className="font-semibold text-gray-600 dark:text-gray-300">Data limite:</span>
-          <span className="text-sm">
-            {task.dueDate ? format(new Date(task.dueDate), 'dd/MM/yyyy') : 'Sem data'}
-          </span>
-        </div>
         {task.team && (
           <div className="mb-2 flex items-center gap-2">
             <span className="font-semibold text-gray-600 dark:text-gray-300">Time:</span>

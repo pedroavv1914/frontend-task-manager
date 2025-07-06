@@ -262,22 +262,6 @@ const TaskForm = ({ isEditing = false, initialData }: TaskFormProps) => {
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700">
-                  Data de Vencimento
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="date"
-                    name="dueDate"
-                    id="dueDate"
-                    value={formData.dueDate}
-                    onChange={handleInputChange}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  />
-                </div>
-              </div>
-
               {teams.length > 0 && (
                 <div>
                   <label htmlFor="teamId" className="block text-sm font-medium text-gray-700">

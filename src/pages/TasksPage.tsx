@@ -487,14 +487,14 @@ const TasksPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Cabeçalho moderno */}
-      <header className="w-full bg-gradient-to-r from-blue-800 via-blue-600 to-sky-500 shadow-2xl">
-        <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col md:flex-row items-center justify-between gap-8">
+      <header className="w-full bg-white dark:bg-gray-800 ">
+        <div className="w-full px-6 py-12 flex flex-col md:flex-row items-center justify-between gap-8">
           <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white drop-shadow-lg mb-2 flex items-center gap-3">
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-blue-900 dark:text-white drop-shadow-lg mb-2 flex items-center gap-3">
               <svg className="h-10 w-10 text-sky-200" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
               Minhas Tarefas
             </h1>
-            <p className="text-sky-100 text-lg font-medium drop-shadow-sm">Organize, priorize e conclua suas atividades com facilidade.</p>
+            <p className="text-gray-700 dark:text-gray-300 text-lg font-medium drop-shadow-sm">Organize, priorize e conclua suas atividades com facilidade.</p>
           </div>
           <button
             className="flex items-center gap-2 px-7 py-3 rounded-xl bg-gradient-to-tr from-sky-400 to-blue-700 text-white font-bold shadow-2xl hover:scale-105 hover:from-sky-500 hover:to-blue-800 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-sky-300"
@@ -507,7 +507,7 @@ const TasksPage = () => {
       </header>
 
       {/* Filtros modernos */}
-      <section className="max-w-7xl mx-auto px-4 -mt-8 mb-6 z-10 relative">
+      <section className="w-full px-0 -mt-8 mb-6 z-10 relative">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Filtro de status */}
           <div className="bg-gradient-to-br from-white/90 to-sky-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-xl flex flex-col items-center py-4 px-3 transition-all duration-200 border-2 border-sky-200 dark:border-sky-900 hover:border-sky-500 hover:shadow-2xl focus-within:ring-2 focus-within:ring-sky-400">
@@ -805,7 +805,7 @@ const TasksPage = () => {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-2 gap-6">
+            <div className="mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8 justify-items-center">
               {filteredTasks.length > 0 ? (
                 filteredTasks.map((task, idx) => {
                   console.log('Renderizando tarefa:', task.id, task.title);
