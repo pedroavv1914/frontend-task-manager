@@ -74,15 +74,13 @@ const TasksPage = () => {
     priority: 'LOW' | 'MEDIUM' | 'HIGH';
     assignedTo: string;
     teamId: string;
-    dueDate?: string;
   }>({
     title: '',
     description: '',
     status: 'PENDING',
     priority: 'MEDIUM',
     assignedTo: '',
-    teamId: '',
-    dueDate: undefined
+    teamId: ''
   });
 
   // Handler para inputs do formulário
@@ -134,10 +132,10 @@ const TasksPage = () => {
         priority: newTask.priority,
         assignedTo: newTask.assignedTo ? [newTask.assignedTo] : [],
         teamId: newTask.teamId,
-        dueDate: newTask.dueDate // Incluir o campo dueDate
+
       };
       
-      console.log('Enviando dados da tarefa com dueDate:', taskData.dueDate);
+
       
       await createTask(taskData);
 
@@ -150,7 +148,7 @@ const TasksPage = () => {
         priority: 'MEDIUM',
         assignedTo: '',
         teamId: '',
-        dueDate: undefined // Resetar o campo dueDate
+
       });
       
       // Recarrega as tarefas
@@ -325,11 +323,9 @@ const TasksPage = () => {
         description: newTask.description,
         status: newTask.status,
         priority: newTask.priority,
-        dueDate: newTask.dueDate // Incluir a data limite na edição
+
       };
       
-      console.log('Data sendo atualizada:', newTask.dueDate);
-
       // Se houver um time selecionado, adiciona ao updateData
       if (newTask.teamId) {
         updateData.teamId = newTask.teamId;
@@ -670,17 +666,6 @@ const TasksPage = () => {
                   <option value="HIGH">Alta</option>
                 </select>
               </div>
-              {/* Campo de data limite */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Data Limite</label>
-                <input
-                  type="date"
-                  name="dueDate"
-                  value={newTask.dueDate || ''}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-              </div>
               {/* Campo de seleção de Time */}
               <div>
                 <label className="block text-sm font-medium text-gray-700">Time Responsável</label>
@@ -822,11 +807,11 @@ const TasksPage = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-2 gap-6">
               {filteredTasks.length > 0 ? (
-                filteredTasks.map((task) => {
+                filteredTasks.map((task, idx) => {
                   console.log('Renderizando tarefa:', task.id, task.title);
                   return (
                     <TaskCard
-                       key={task.id}
+                       key={task.id + '-' + task.createdAt + '-' + idx}
                        task={task}
                        onEdit={() => handleEditTask(task)}
                        onDelete={() => handleDeleteTask(task.id)}

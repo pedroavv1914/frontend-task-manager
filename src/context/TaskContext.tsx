@@ -259,7 +259,8 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       let dueDateToPreserve: string | undefined = undefined;
       if (taskData.dueDate) {
         dueDateToPreserve = taskData.dueDate;
-        console.log('Data presente, será preservada apenas no frontend:', dueDateToPreserve);
+        // Não enviar deadline para o backend
+        console.log('Data presente, mas não será enviada ao backend:', dueDateToPreserve);
       }
       
       // Adicionamos TeamId apenas se for necessário e certeza que não causaria erro
