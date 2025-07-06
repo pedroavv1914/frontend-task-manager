@@ -3,8 +3,6 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { StatusBadge, PriorityBadge } from '../components/ui/Badge';
-import TaskDetailsModal from '../components/TaskDetailsModal';
-import { TaskWithDetails } from '../types';
 
 // Tipos para as tarefas
 interface Task {
@@ -19,7 +17,6 @@ interface Task {
 }
 
 const DashboardPage = () => {
-  const [selectedTask, setSelectedTask] = useState<TaskWithDetails | null>(null);
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -211,15 +208,6 @@ const DashboardPage = () => {
                               ) : (
                                 <span className="text-gray-400">Não atribuído</span>
                               )}
-                            </td>
-                            <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedTask(task as TaskWithDetails)}
-                                className="inline-block px-4 py-2 rounded-lg bg-gradient-to-r from-sky-400 to-indigo-500 text-white font-semibold shadow hover:from-sky-500 hover:to-indigo-600 dark:bg-gradient-to-r dark:from-sky-700 dark:to-indigo-800 dark:hover:from-sky-600 dark:hover:to-indigo-700 transition"
-                              >
-                                Ver detalhes
-                              </button>
                             </td>
                           </tr>
                         ))}
