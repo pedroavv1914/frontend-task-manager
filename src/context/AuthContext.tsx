@@ -82,17 +82,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
-  const [loading, setLoading] = useState(true);
+  // Novo estado para loading de autenticação
+  const [authLoading, setAuthLoading] = useState(true);
 
 
   // Carrega o usuário autenticado do backend usando o token JWT
   useEffect(() => {
     const fetchUser = async () => {
+      setAuthLoading(true);
       const storedToken = localStorage.getItem('token');
       
       if (!storedToken) {
         setUser(null);
-        setLoading(false);
+        setAuthLoading(false);
         return;
       }
       
@@ -124,7 +126,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setToken(null);
         localStorage.removeItem('token');
       } finally {
-        setLoading(false);
+        setAuthLoading(false);
       }
     };
     
@@ -454,7 +456,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const loadUsersList = async () => {
       await loadUsers();
-      setLoading(false);
+
     };
     loadUsersList();
   }, [token]);
@@ -476,7 +478,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         updateUser,
         deleteUser,
         isAuthenticated: !!user,
-        loading,
+        loading: authLoading,
       }}
     >
       {children}
